@@ -7,13 +7,12 @@ public final class CreatureCard extends Card {
     private int health;
     private final int bloodCost;
     private final int bonesCost;
-    // private Img
     // List type is for interface type (an array of elements of Sigil type inside)
     private final List<Sigil> sigils = new ArrayList<>();
 
-    public CreatureCard(String id, String name, int attack, int health, int bloodCost, int bonesCost) {
+    public CreatureCard(String id, String name, int attack, int health, int bloodCost, int bonesCost, String imagePath) {
         // super calls Card constructor
-        super(id, name);
+        super(id, name, imagePath);
         this.attack = attack;
         this.health = health;
         this.bloodCost = bloodCost;
