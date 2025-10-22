@@ -2,6 +2,7 @@
 
 public class MagpiesLensItem implements Items {
     @Override
+
     public String name() { return "Magpie's Lens"; }
     
     @Override

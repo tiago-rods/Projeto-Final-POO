@@ -1,3 +1,6 @@
+import java.util.ArrayList;
+import java.util.List;
+
 public class Player {
     private final String name;
     private final Side side; // Lado do Jogador norte ou sul
