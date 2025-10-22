@@ -29,7 +29,6 @@ public class Card extends StackPane {
     public String getName() { return name; }
 
 
-
     private void buildVisual() {
         // Card's bg
         Rectangle background = new Rectangle(150, 200);
