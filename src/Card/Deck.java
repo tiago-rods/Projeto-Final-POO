@@ -10,14 +10,57 @@ public class Deck {
     private final List<CreatureCard> discardPile; // just in case we need it
     private final Random random;
 
+    // List of Sigils
+    Sigil fly = new FlySigil();
+
     public Deck() {
         this.deck = new ArrayList<>();
         this.squirrelDeck = new ArrayList<>();
         this.discardPile = new ArrayList<>();
         this.random = new Random();
 
-        // We can change the amount of squirrels, but we used 6 just to make testing easier later.
-        int qntSquirrel = 6;
+        initializeSquirrelDeck();
+        initializeDeck();
+    }
+
+    // Adding all other cards to normal deck
+    // Initialize normal deck
+    public void initializeDeck() {
+        CreatureCard coyote1 = new CreatureCard("coyote1", "coyote", 2, 1, 0, 4, "/img/regular/coyote.png");
+        deck.add(coyote1);
+
+        CreatureCard grizzly1 = new CreatureCard("grizzly1", "grizzly", 4, 6, 3, 0, "/img/regular/grizzly.png");
+        deck.add(grizzly1);
+
+        CreatureCard opossum1 = new CreatureCard("opossum1", "opossum", 1, 1, 0, 2, "/img/regular/grizzly.png");
+        deck.add(opossum1);
+
+        CreatureCard rabbit1 = new CreatureCard("rabbit1", "rabbit", 0, 1, 0, 0, "/img/regular/rabbit.png");
+        deck.add(rabbit1);
+
+        CreatureCard stoat1 = new CreatureCard("stoat1", "stoat", 1, 3, 1, 0, "/img/regular/stoat.png");
+        deck.add(stoat1);
+        CreatureCard stoat2 = new CreatureCard("stoat2", "stoat", 1, 3, 1, 0, "/img/regular/stoat.png");
+        deck.add(stoat2);
+
+        CreatureCard wolf1 = new CreatureCard("wolf1", "wolf", 3, 2, 2, 0, "/img/regular/wolf.png");
+        deck.add(wolf1);
+
+        CreatureCard stuntedWolf1 = new CreatureCard("stuntedWolf1", "stuntedWolf", 2, 2, 1, 0, "/img/regular/wolf_talking.png");
+        deck.add(stuntedWolf1);
+
+        // Teste de FlySigil
+        CreatureCard raven1 = new CreatureCard("raven1", "raven", 2, 3, 2, 0, "/img/regular/raven.png");
+        raven1.addSigil(fly);
+
+        CreatureCard sparrow1 = new CreatureCard("sparrow1", "sparrow", 1, 2, 1, 0, "/img/regular/sparrow.png");
+        raven1.addSigil(fly);
+    }
+
+    // Initialize squirrelDeck
+    public void initializeSquirrelDeck() {
+        // We can change the amount of squirrels
+        int qntSquirrel = 10;
         for (int i = 0; i < qntSquirrel; i++) {
             CreatureCard squirrel = new CreatureCard(
                     "squirrel_" + i,
@@ -30,11 +73,7 @@ public class Deck {
             );
             squirrelDeck.add(squirrel);
         }
-
-        // Adding all other cards to normal deck
-
     }
-
 
     // Adds a card to deck
     public void addCard(CreatureCard card) {

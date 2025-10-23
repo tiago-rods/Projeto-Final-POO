@@ -1,5 +1,5 @@
 
-public class SigilFly implements Sigil {
+public class FlySigil implements Sigil {
     @Override
     public String name() { return "Fly"; }
 
