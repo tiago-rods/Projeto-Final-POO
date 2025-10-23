@@ -13,6 +13,8 @@ public class Deck {
     // List of Sigils
     Sigil fly = new FlySigil();
 
+
+
     public Deck() {
         this.deck = new ArrayList<>();
         this.squirrelDeck = new ArrayList<>();
@@ -32,15 +34,15 @@ public class Deck {
         CreatureCard grizzly1 = new CreatureCard("grizzly1", "grizzly", 4, 6, 3, 0, "/img/regular/grizzly.png");
         deck.add(grizzly1);
 
-        CreatureCard opossum1 = new CreatureCard("opossum1", "opossum", 1, 1, 0, 2, "/img/regular/grizzly.png");
+        CreatureCard opossum1 = new CreatureCard("opossum1", "opossum", 1, 1, 0, 2, "/img/regular/opossum.png");
         deck.add(opossum1);
 
         CreatureCard rabbit1 = new CreatureCard("rabbit1", "rabbit", 0, 1, 0, 0, "/img/regular/rabbit.png");
         deck.add(rabbit1);
 
-        CreatureCard stoat1 = new CreatureCard("stoat1", "stoat", 1, 3, 1, 0, "/img/regular/stoat.png");
+        CreatureCard stoat1 = new CreatureCard("stoat1", "stoat", 1, 3, 1, 0, "/img/regular/stoat_talking.png");
         deck.add(stoat1);
-        CreatureCard stoat2 = new CreatureCard("stoat2", "stoat", 1, 3, 1, 0, "/img/regular/stoat.png");
+        CreatureCard stoat2 = new CreatureCard("stoat2", "stoat", 1, 3, 1, 0, "/img/regular/stoat_talking.png");
         deck.add(stoat2);
 
         CreatureCard wolf1 = new CreatureCard("wolf1", "wolf", 3, 2, 2, 0, "/img/regular/wolf.png");
