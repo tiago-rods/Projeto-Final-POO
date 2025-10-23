@@ -54,7 +54,7 @@ public class Deck {
         raven1.addSigil(fly);
 
         CreatureCard sparrow1 = new CreatureCard("sparrow1", "sparrow", 1, 2, 1, 0, "/img/regular/sparrow.png");
-        raven1.addSigil(fly);
+        sparrow1.addSigil(fly);
     }
 
     // Initialize squirrelDeck
