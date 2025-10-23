@@ -4,7 +4,7 @@ public class HoggyBankItem implements Items {
     public String name() { return "Hoggy Bank"; }
 
     @Override
-    public String description() { return "Ganha 4 ossos imediatamente (um uso)."; }
+    public String description() { return "Gains 4 bones imediatelly (one use)."; }
 
     @Override
     public boolean canUse(GameContext context, Player user) { return true; }

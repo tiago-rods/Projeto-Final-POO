@@ -1,4 +1,4 @@
-public class BlackGoatBottle implements Items {
+public class BlackGoatBottleItem implements Items {
     @Override
     public String name() { return "Black Goat Bottle"; }
 
