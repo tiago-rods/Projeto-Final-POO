@@ -6,13 +6,20 @@ public class Board {
     // Matrix representing the board [row][column]
     private Card[][] board;
 
+    /*              C0 C1 C2 C3
+    *       Line 0  -  -  -  -
+    *       Line 1  -  -  -  -
+    *       Line 2  -  -  -  -
+    *       Line 3  -  -  -  -
+    * */
+
     // Enum -> Naming the types of spaces on the game board
     // Enum to identify the board zones
     public enum SpaceType {
-        PLAYER_1_POSITIONING,  // Col 0
-        ATTACK_PLAYER1,          // Col 1
-        ATTACK_PLAYER2,          // Col 2
-        PLAYER_2_POSITIONING   // Col 3
+        PLAYER_1_POSITIONING,  // Line 3 (lower)
+        ATTACK_PLAYER1,          // Line 2
+        ATTACK_PLAYER2,          // Line 1
+        PLAYER_2_POSITIONING   // Line 0 (upper)
     }
 
     public Board() {
@@ -31,12 +38,12 @@ public class Board {
 
     // Methods for identifying the type of space
     public SpaceType getSpaceType(int line, int col) {
-        switch (col) {
-            case 0: return SpaceType.PLAYER_1_POSITIONING;
-            case 1: return SpaceType.ATTACK_PLAYER1;
-            case 2: return SpaceType.ATTACK_PLAYER2;
-            case 3: return SpaceType.PLAYER_2_POSITIONING;
-            default: throw new IllegalArgumentException("Invalid Column: " + col);
+        switch (line) {
+            case 3: return SpaceType.PLAYER_1_POSITIONING;
+            case 2: return SpaceType.ATTACK_PLAYER1;
+            case 1: return SpaceType.ATTACK_PLAYER2;
+            case 0: return SpaceType.PLAYER_2_POSITIONING;
+            default: throw new IllegalArgumentException("Invalid Line: " + line);
         }
     }
 
@@ -47,8 +54,9 @@ public class Board {
     }
 
     // Place a card in the placement space
-    public boolean placeCard(Card card, int linePos, int player) {
-        int colPos = (player == 1) ? 0 : 3;
+    // No need to pass line as param because it changes depending on the player.
+    public boolean placeCard(Card card, int colPos, int player) {
+        int linePos = (player == 1) ? 3 : 0;
 
         if (EmptySpace(linePos, colPos)) {
             board[linePos][colPos] = card;
@@ -58,18 +66,18 @@ public class Board {
         return false;
     }
 
-    // Move card do espaço de posicionamento para espaço de ataque
-    public boolean moveToAttack(int line, int player) {
-        int colPos = (player == 1) ? 0 : 3;
-        int colAttack = (player == 1) ? 1 : 2;
+    // Move card from placement space to attack space.
+    public boolean moveToAttack(int col, int player) {
+        int linePos = (player == 1) ? 3 : 0;
+        int lineAttack = (player == 1) ? 2 : 1;
 
         // Checks if there is a card in the position and if the attack slot is empty
-        if (!EmptySpace(line, colPos) && EmptySpace(line, colAttack)) {
+        if (!EmptySpace(linePos, col) && EmptySpace(lineAttack, col)) {
             // aux variable, current position is now NULL, card goes to attack position
-            Card card = board[line][colPos];
-            board[line][colPos] = null;
-            board[line][colAttack] = card;
-            card.setPos(line, colAttack);
+            Card card = board[linePos][col];
+            board[linePos][col] = null;
+            board[lineAttack][col] = card;
+            card.setPos(lineAttack, col);
             return true;
         }
         return false;
@@ -89,14 +97,32 @@ public class Board {
         return board[line][col];
     }
 
-    // Gets opposite card
-    public Card getOppositeCard(int line, int col) {
+    // Gets opposite attack card
+    // If doesnt have a card, returns NULL
+    // Passes the current card of the player turn (your line, your col)
+    public Card getOppositeAttackCard(int line, int col) {
         validatePosition(line, col);
 
-        if (col == 1) { // Attack of player 1
-            return board[line][2]; // Verify line attack of player 2
-        } else if (col == 2) { // Attack of player 2
-            return board[line][1]; // Verify line attack of player 1
+        // if it is player1's turn
+        if (line == 2) { // Attack of player 1
+            // return a specific opposite card of a certain col
+            return board[1][col]; // Verify line attack of player 2
+        } else if (line == 3) { // Attack of player 2
+            return board[2][col]; // Verify line attack of player 1
+        }
+        return null;
+    }
+
+    // Gets opposite defense card
+    public Card getOppositeDefenseCard(int line, int col) {
+        validatePosition(line, col);
+
+        // if it is player1's turn
+        if (line == 2) { // Attack of player 1
+            // return a specific opposite card of a certain col
+            return board[0][col]; // Verify line defense of player 2
+        } else if (line == 3) { // Attack of player 2
+            return board[3][col]; // Verify line defense of player 1
         }
         return null;
     }
