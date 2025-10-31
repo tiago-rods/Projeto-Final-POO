@@ -15,6 +15,10 @@ public class Card extends StackPane {
     private final String name;
     protected Image image;
 
+    // Starts with -1 because card starts off board
+    private int posLine = -1;
+    private int posCol = -1;
+
     // protected --> constructor can be called by this class or a son
     protected Card(String idCard, String name, String imagePath) {
         this.idCard = idCard;
@@ -27,6 +31,14 @@ public class Card extends StackPane {
 
     public String getIdCard() { return idCard; }
     public String getName() { return name; }
+
+    public int getPosLine () { return posLine; }
+    public int getPosCol () { return posCol; }
+
+    public void setPos (int posLine, int posCol ) {
+        this.posLine = posLine;
+        this.posCol = posCol;
+    }
 
 
     private void buildVisual() {

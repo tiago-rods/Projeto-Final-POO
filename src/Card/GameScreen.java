@@ -18,13 +18,33 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.scene.Parent;
 import javafx.geometry.VPos;
+import javafx.animation.ScaleTransition;
+import javafx.util.Duration;
+import javafx.animation.Interpolator;
+import javafx.scene.Node;
+
 
 
 
 public class GameScreen {
 
+    //====== medidas padrao
+
     private static final double CARD_WIDTH = 100;   // largura padrão da carta
     private static final double CARD_HEIGHT = 150;   // altura padrão da carta
+
+    // ====== controle de turno e seleção
+    private boolean isPlayer1Turn = true;            // true = vez do P1; false = vez do P2
+    private StackPane selectedCardNode = null;       // referência visual à carta selecionada
+    private String selectedCardImagePath = null;     // imagem da carta selecionada
+
+
+    // ======= configs da mao
+    private static final double HAND_SPACING = 5;           // espaçamento “natural” entre cartas
+    private HBox playerHandP1;
+
+    // label de turno
+    private Label turnLabel;
 
 
     // ===== TELA DE JOGO =====
@@ -128,7 +148,21 @@ public class GameScreen {
 
 
 
+            passTurn();
+
+            addCardToHand(playerHandP1, "/img/regular/grizzly_5life.png");
+
+
+
+
+
+
         });
+
+        // indicador de turno
+        turnLabel = new Label("Turn: P1");
+        turnLabel.setTextFill(Color.BEIGE);
+        turnLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 20));
 
 
 // --- MONTAGEM FINAL ---
@@ -136,6 +170,7 @@ public class GameScreen {
                 scoreTitle,
                 scaleValues,
                 scaleBar,
+                turnLabel,
                 spacer,
                 bellButton
         );
@@ -162,8 +197,11 @@ public class GameScreen {
         centerDivider.setStyle("-fx-background-color: #3a2d2d; -fx-background-radius: 4;");
         GridPane bottomGrid = createPlayerGrid("P1"); // P1-0..P1-7 (baixo)
 
+        playerHandP1 = createPlayerHand("HAND-P1");
+        playerHandP1.setAlignment(Pos.CENTER);
+
 // Empilha: topo (P2) / divisor / baixo (P1)
-        boardArea.getChildren().addAll(topGrid, centerDivider, bottomGrid);
+        boardArea.getChildren().addAll(topGrid, centerDivider, bottomGrid, playerHandP1);
 
 // ====== COMPOSIÇÃO E PROPORÇÕES ======
         root.getChildren().addAll(leftPanel, boardArea);
@@ -244,6 +282,12 @@ public class GameScreen {
         // Define imagem diretamente neste slot
         setSlotImage(slot, imagePath);
 
+        // define o slot como vazio, ocupado = false
+        slot.getProperties().put("occupied", Boolean.FALSE);
+
+
+        //boolean ocupado = Boolean.TRUE.equals(slot.getProperties().get("occupied"));
+        //Se for true, o slot já tem uma carta; se for false, está livre
 
         // Preferências iniciais menores (mantém 16:9-ish)
         slot.setMinWidth(CARD_WIDTH);
@@ -266,6 +310,10 @@ public class GameScreen {
                         "-fx-background-radius: 5;" +
                         "-fx-border-width: 2;"
         ));
+
+       // clique no slot tenta posicionar a carta selecionada
+        slot.setOnMouseClicked(e -> slotClick(slot));
+
 
         return slot;
     }
@@ -296,12 +344,20 @@ public class GameScreen {
                 iv.fitWidthProperty().bind(slot.widthProperty().subtract(inset * 2));
                 iv.fitHeightProperty().bind(slot.heightProperty().subtract(inset * 2));
                 iv.setOpacity(0.4); //Controla opacidade
+                if (isP2(slot.getId())) { //Caso seja P2
+                    iv.setRotate(180);   //Deixar de ponta cabeca
+                }
+
 
             } else if (resourcePath.contains("paw")) {
                 // pata apenas reduz opacidade
                 iv.fitWidthProperty().bind(slot.widthProperty());
                 iv.fitHeightProperty().bind(slot.heightProperty());
                 iv.setOpacity(0.4); //Controla opacidade
+                if (isP2(slot.getId())) { //Caso seja P2
+                    iv.setRotate(180);   //Deixar de ponta cabeca
+                }
+
 
             } else {
                 // carta ocupa tudo
@@ -310,9 +366,6 @@ public class GameScreen {
 
             }
 
-        if (slot.getId().startsWith("P2")) {
-            iv.setRotate(180); // vira de ponta cabeça
-        }
 
 
         // Troca o conteúdo do slot pela imagem
@@ -395,9 +448,200 @@ public class GameScreen {
         }
     }
 
+    //============================================
+    //Mao do jogador
+    //============================================
 
 
- //Fim
+    /**
+     * Adiciona uma nova carta à mão do jogador.
+     *
+     * - Gera ID único para debug
+     * - Aplica imagem
+     * - Garante que não ultrapasse 7 cartas
+     */
+    private void addCardToHand(HBox handBox, String imagePath) {
+        // Limite máximo de 7 cartas
+        if (handBox.getChildren().size() >= 7) {
+            System.out.println("Limite máximo de 7 cartas atingido.");
+            return;
+        }
+
+        StackPane card = new StackPane();
+
+        // --- TAMANHO DA CARTA ---
+        card.setMinWidth(CARD_WIDTH);
+        card.setMinHeight(CARD_HEIGHT);
+        card.setMaxWidth(CARD_WIDTH);
+        card.setMaxHeight(CARD_HEIGHT);
+
+        // --- ID ÚNICO ---
+        card.setId(handBox.getId() + "-CARD-" + handBox.getChildren().size());
+
+        // --- INSERE A IMAGEM NO SLOT ---
+        setSlotImage(card, imagePath);
+
+        // --- INSERE A CARTA ---
+        handBox.getChildren().add(card);
+
+
+        // --- HOVER: animação de zoom ao passar o mouse ---
+        card.setOnMouseEntered(e -> {
+            // reseta vizinhos (um único zoom por vez)
+            for (Node sib : handBox.getChildren()) {
+                if (sib != card) {
+                    sib.setScaleX(1.0);
+                    sib.setScaleY(1.0);
+                    sib.setViewOrder(0); //plano normal
+                }
+            }
+
+            // traz pra frente
+            card.setViewOrder(-1);
+
+            ScaleTransition st = new ScaleTransition(Duration.millis(140), card);
+            st.setToX(1.25);
+            st.setToY(1.25);
+            st.setInterpolator(Interpolator.EASE_BOTH);
+            st.play();
+        });
+
+        card.setOnMouseExited(e -> {
+            ScaleTransition st = new ScaleTransition(Duration.millis(120), card);
+            st.setToX(1.0);
+            st.setToY(1.0);
+            st.setInterpolator(Interpolator.EASE_BOTH);
+            st.play();
+
+            // volta pro plano normal
+            card.setViewOrder(0);
+        });
+
+        // guardar o caminho da imagem dentro do node
+        card.getProperties().put("imagePath", imagePath);
+
+    // clique para selecionar/deselecionar a carta
+        card.setOnMouseClicked(e -> {
+            if (selectedCardNode == card) {
+                // já estava selecionada → desmarca
+                clearSelection();
+                return;
+            }
+            // seleciona esta carta
+            selectCard(card); // Funçao que seleciona
+        });
+
+
+    }
+
+    /**
+     * Cria o container da mão do jogador (HBox)
+     * - Suporta no máximo 7 cartas lado a lado
+     */
+    private HBox createPlayerHand(String prefix) {
+        HBox hand = new HBox();
+
+        // --- LAYOUT ---
+        hand.setSpacing(HAND_SPACING);
+        hand.setAlignment(Pos.CENTER_LEFT); // alinhar à esquerda ajuda no cálculo do overlay
+        hand.setId(prefix);
+
+
+        // --- TAMANHO FIXO ---
+        //
+        // (ex.: 7 cartas “naturais” lado a lado)
+        double fixedWidth = (CARD_WIDTH * 7) + (HAND_SPACING * 6); //quantas cartas cabem
+        hand.setMinWidth(fixedWidth);
+        hand.setPrefWidth(fixedWidth);
+        hand.setMaxWidth(fixedWidth);
+
+        // altura travada na altura da carta
+        hand.setMinHeight(CARD_HEIGHT);
+        hand.setPrefHeight(CARD_HEIGHT);
+        hand.setMaxHeight(CARD_HEIGHT);
+
+
+        return hand;
+    }
+
+
+private void passTurn() {
+        System.out.println("Pass turn.");
+
+        // alterna a vez
+        isPlayer1Turn = !isPlayer1Turn;
+        turnLabel.setText(isPlayer1Turn ? "Turn: P1" : "Turn: P2");
+
+        //limpar qualquer seleção pendente
+        //clearSelection();
+
+    }
+
+
+    // === helpers de seleção ===
+    private void selectCard(StackPane card) {
+        clearSelection(); // garante seleção única
+
+        selectedCardNode = card;
+        selectedCardImagePath = (String) card.getProperties().get("imagePath");
+
+
+        //Coloca BRILHO/DESTAQUE
+        card.setStyle(card.getStyle() + "; -fx-effect: dropshadow(gaussian, #f0e6d2, 18, 0.3, 0, 0);");
+
+    }
+
+    private void clearSelection() {
+        if (selectedCardNode != null) {
+
+            // restaura estilo base do card
+            selectedCardNode.setStyle("");
+
+        }
+        selectedCardNode = null;
+        selectedCardImagePath = null;
+    }
+
+
+    // === posicionar carta no slot, validando turno e ocupação ===
+    private void slotClick(StackPane slot) {
+        // precisa ter carta selecionada
+        if (selectedCardNode == null) {
+            return;
+        }
+
+        // o slot precisa pertencer ao jogador da vez
+        boolean slotDoP1 = isP1(slot.getId());
+
+        //caso nao seja nem a vez nem o slot do p1
+        if ((isPlayer1Turn && !slotDoP1) || (!isPlayer1Turn && slotDoP1)) {
+            // feedback
+            System.out.println("Não é o lado do jogador da vez.");
+            return;
+        }
+
+        // slot precisa estar livre
+        boolean ocupado = Boolean.TRUE.equals(slot.getProperties().get("occupied"));
+        if (ocupado) {
+            System.out.println("Slot já ocupado.");
+            return;
+        }
+
+        // coloca a imagem da carta no slot (setSlotImage já cuida de rotacionar P2)
+        setSlotImage(slot, selectedCardImagePath);
+        slot.getProperties().put("occupied", Boolean.TRUE);
+
+        // remove a carta da mão (independe de qual mão for — pega o pai)
+        if (selectedCardNode.getParent() instanceof HBox parentHand) {
+            parentHand.getChildren().remove(selectedCardNode);
+        }
+
+        // limpa seleção
+        clearSelection();
+    }
+
+
+    //Fim
 }
 
 
