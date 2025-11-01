@@ -1,4 +1,4 @@
-package Items;
+package items;
 
 public interface Items {
     String name(); //retornar o nome do item

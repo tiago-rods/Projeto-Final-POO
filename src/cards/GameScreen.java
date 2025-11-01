@@ -1,3 +1,5 @@
+package cards;
+
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.geometry.Insets;
@@ -162,7 +164,7 @@ public class GameScreen {
             passTurn();
 
             Card newCard = new Card("P1-CARD-0", "Grizzly", "/img/regular/grizzly.png");
-            newCard.changeLifeIcon(3);
+            newCard.changeLifeIcon(1);
             addCardToHandBox(playerHandP1, newCard);
 
 

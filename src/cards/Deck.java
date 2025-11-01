@@ -1,5 +1,7 @@
-import Sigils.FlySigil;
-import Sigils.Sigil;
+package cards;
+
+import sigils.FlySigil;
+import sigils.Sigil;
 
 import java.util.ArrayList;
 import java.util.Collections;

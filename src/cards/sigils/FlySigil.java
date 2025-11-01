@@ -1,4 +1,5 @@
-package Sigils;
+package sigils;
+import cards.CreatureCard;
 
 public class FlySigil implements Sigil {
     @Override

@@ -1,4 +1,5 @@
-import Sigils.Sigil;
+package cards;
+import sigils.Sigil;
 
 import java.util.ArrayList;
 // We are using collections just for safety

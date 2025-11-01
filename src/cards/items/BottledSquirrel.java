@@ -1,4 +1,4 @@
-package Items;
+package items;
 
 public class BottledSquirrel implements Items {
     @Override
@@ -8,8 +8,11 @@ public class BottledSquirrel implements Items {
     public String description() {return "When used, the player receives a free squirrel "; }
 
     @Override
-    public Boolean canUse(); // FAZER QUANDO LÓGICA ESTIVER CORRETA
+    public boolean canUse(){
+        return true;
+    } // FAZER QUANDO LÓGICA ESTIVER CORRETA
 
     @Override
-    public void use(); // FAZER QUANDO LÓGICA ESTIVER CORRETA
+    public void use(){} // FAZER QUANDO LÓGICA ESTIVER CORRETA
+
 }
