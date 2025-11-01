@@ -13,22 +13,89 @@ public class Card extends StackPane {
     // We can track the card by your id
     private final String idCard;
     private final String name;
-    protected Image image;
+    private final ImageView imageView;
+    private final String imagePath;
+
 
     // Starts with -1 because card starts off board
     private int posLine = -1;
     private int posCol = -1;
 
-    // protected --> constructor can be called by this class or a son
-    protected Card(String idCard, String name, String imagePath) {
+    public static final double CARD_WIDTH = 100;
+    public static final double CARD_HEIGHT = 150;
+
+    public static final double HP_WIDTH_RATIO = 0.2634;
+    public static final double HP_HEIGHT_RATIO = 0.30;
+
+
+
+
+    //Construtor
+    public Card(String idCard, String name, String imagePath) {
         this.idCard = idCard;
         this.name = name;
-        // gets current class, than find the file within the project and open it as a stream
-        this.image = new Image(Objects.requireNonNull(getClass().getResourceAsStream(imagePath)));
+        this.imagePath = imagePath;
 
-        buildVisual();
+        Image img = new Image(Objects.requireNonNull(
+                getClass().getResourceAsStream(imagePath)
+        ));
+        imageView = new ImageView(img);
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+        imageView.setCache(true);
+        imageView.fitWidthProperty().bind(widthProperty());
+        imageView.fitHeightProperty().bind(heightProperty());
+
+        setMinSize(CARD_WIDTH, CARD_HEIGHT);
+        setPrefSize(CARD_WIDTH, CARD_HEIGHT);
+        setMaxSize(CARD_WIDTH, CARD_HEIGHT);
+
+        getChildren().setAll(imageView);
     }
 
+    public void highlight(boolean on) {
+        setStyle(on
+                ? "-fx-effect: dropshadow(gaussian, #f0e6d2, 18, 0.3, 0, 0);"
+                : ""
+        );
+    }
+
+
+
+    public void changeLifeIcon(int hp) {
+        // Remove qualquer ícone anterior (se existir)
+        getChildren().removeIf(node -> "lifeIcon".equals(node.getId()));
+
+        // Determina a imagem com base no HP
+        String iconPath = "/img/hp/" + hp + ".png"; // exemplo: /img/hp/3.png
+        Image hpImg = new Image(Objects.requireNonNull(
+                getClass().getResourceAsStream(iconPath)
+        ));
+
+        ImageView hpView = new ImageView(hpImg);
+        hpView.setPreserveRatio(true);
+        hpView.setSmooth(true);
+        hpView.setCache(true);
+        hpView.setId("lifeIcon");
+
+        double hpWidth = CARD_WIDTH  * HP_WIDTH_RATIO;
+        double hpHeight = CARD_HEIGHT * HP_HEIGHT_RATIO;
+
+        hpView.setFitWidth(hpWidth);
+        hpView.setFitHeight(hpHeight);
+
+
+
+        // Posiciona no canto inferior direito
+        StackPane.setAlignment(hpView, javafx.geometry.Pos.BOTTOM_RIGHT);
+
+        // Adiciona o ícone por cima
+        getChildren().add(hpView);
+    }
+
+
+    //getters
+    public String getImagePath() {return imagePath;}
     public String getIdCard() { return idCard; }
     public String getName() { return name; }
 
@@ -41,27 +108,6 @@ public class Card extends StackPane {
     }
 
 
-    private void buildVisual() {
-        // Card's bg
-        Rectangle background = new Rectangle(150, 200);
-        background.setArcWidth(20);
-        background.setArcHeight(20);
-        background.setFill(Color.BEIGE);
-        background.setStroke(Color.BLACK);
 
-        // Card's image
-        ImageView imageView = new ImageView(image);
-        imageView.setFitWidth(130);
-        imageView.setFitHeight(100);
-        imageView.setTranslateY(-20);
-
-        // Card's name
-        Text nameText = new Text(name);
-        nameText.setFont(Font.font("Arial", 16));
-        nameText.setFill(Color.BLACK);
-        nameText.setTranslateY(-85);
-
-        this.getChildren().addAll(background, imageView, nameText);
-    }
 
 }

@@ -18,11 +18,11 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.scene.Parent;
 import javafx.geometry.VPos;
-import javafx.animation.ScaleTransition;
-import javafx.util.Duration;
 import javafx.animation.Interpolator;
+import javafx.animation.ScaleTransition;
 import javafx.scene.Node;
-
+import javafx.scene.input.MouseEvent;
+import javafx.util.Duration;
 
 
 
@@ -35,8 +35,7 @@ public class GameScreen {
 
     // ====== controle de turno e seleção
     private boolean isPlayer1Turn = true;            // true = vez do P1; false = vez do P2
-    private StackPane selectedCardNode = null;       // referência visual à carta selecionada
-    private String selectedCardImagePath = null;     // imagem da carta selecionada
+    private Card selectedCardNode = null;
 
 
     // ======= configs da mao
@@ -45,6 +44,18 @@ public class GameScreen {
 
     // label de turno
     private Label turnLabel;
+
+
+    // ==== CONSTRUTOR ====
+    //public GameScreen(String player1Name, String player2Name) {
+    //    this.player1Name = player1Name;
+     //   this.player2Name = player2Name;
+//
+// O jogador 1 sempre começa
+    //    this.isPlayer1Turn = true;
+//
+//   System.out.println("Novo jogo iniciado: " + player1Name + " vs " + player2Name);
+//    }TODO: construtor, caso queira mais pra frente incializar o jogo com nomes
 
 
     // ===== TELA DE JOGO =====
@@ -150,10 +161,9 @@ public class GameScreen {
 
             passTurn();
 
-            addCardToHand(playerHandP1, "/img/regular/grizzly_5life.png");
-
-
-
+            Card newCard = new Card("P1-CARD-0", "Grizzly", "/img/regular/grizzly.png");
+            newCard.changeLifeIcon(3);
+            addCardToHandBox(playerHandP1, newCard);
 
 
 
@@ -250,7 +260,11 @@ public class GameScreen {
                     imagePath = (r == 0) ? "/img/paw.png" : "/img/arrow.png";
                 }
 
-                StackPane slot = createCardSlot(prefix + "-" + id, imagePath);
+                StackPane slot = createPlaceholder(prefix + "-" + id, imagePath);
+
+
+                slot.getProperties().put("row", r);
+                slot.getProperties().put("col", c);
 
                 // Centraliza verticalmente caso a célula fique mais alta que o slot
                 GridPane.setValignment(slot, VPos.CENTER);
@@ -264,10 +278,10 @@ public class GameScreen {
 
 
     /**
-     * Cria um slot "deitado" para carta (placeholder).
+     * Cria um slot para carta (placeholder).
      * Você poderá substituir o conteúdo por uma ImageView no futuro.
      */
-    private StackPane createCardSlot(String id, String imagePath) {
+    private StackPane createPlaceholder(String id, String imagePath) {
         StackPane slot = new StackPane();
         slot.setId(id);
         slot.setAlignment(Pos.CENTER);
@@ -279,15 +293,10 @@ public class GameScreen {
                         "-fx-border-width: 2;"
         );
 
-        // Define imagem diretamente neste slot
-        setSlotImage(slot, imagePath);
-
-        // define o slot como vazio, ocupado = false
-        slot.getProperties().put("occupied", Boolean.FALSE);
+        // Define as imagens de placeholder
+        setImagePlaceholder(slot, imagePath);
 
 
-        //boolean ocupado = Boolean.TRUE.equals(slot.getProperties().get("occupied"));
-        //Se for true, o slot já tem uma carta; se for false, está livre
 
         // Preferências iniciais menores (mantém 16:9-ish)
         slot.setMinWidth(CARD_WIDTH);
@@ -311,16 +320,29 @@ public class GameScreen {
                         "-fx-border-width: 2;"
         ));
 
+        //todos começam vazios
+        // define o slot como vazio, ou estar ocupado começa false
+        slot.getProperties().put("occupied", Boolean.FALSE);
+
+
+        //boolean ocupado = Boolean.TRUE.equals(slot.getProperties().get("occupied"));
+        //Se for true, o slot já tem uma carta; se for false, está livre
        // clique no slot tenta posicionar a carta selecionada
-        slot.setOnMouseClicked(e -> slotClick(slot));
+        slot.setOnMouseClicked(e -> dropCard(slot));
+
 
 
         return slot;
     }
 
+// Define uma imagem em um StackPane, ajustando tamanho, opacidade e rotação conforme o tipo.
+// Use para atualizar visualmente um slot da interface (ex: carta, seta, ícone).
+// Exemplo de uso:
+// setSlotImage(slotCarta, "/images/card_back.png");
+// setSlotImage(slotSeta, "/images/arrow.png");
+// setSlotImage(slotPata, "/images/paw.png");
 
-
-    private void setSlotImage(StackPane slot, String resourcePath) {
+    private void setImagePlaceholder(StackPane slot, String resourcePath) {
         // Carrega a imagem do classpath (src/main/resources)
         Image img = new Image(
                 getClass().getResource(resourcePath).toExternalForm(),
@@ -375,29 +397,7 @@ public class GameScreen {
     }
 
 
-    /**
-     * Atualiza a imagem de um slot do tabuleiro.
-     *
-     * @param root      layout principal da tela (VBox)
-     * @param slotId    ID do slot (ex: "P1-0", "P2-3")
-     * @param imagePath caminho da imagem (ex: "/img/regular/grizzly.png")
-     *
-     * Este metodo detecta automaticamente se o slot pertence a P2 (topo)
-     * e aplica rotação de 180° nesse caso.
-     *
-     * Exemplo:
-     *   addCardSlot(root, "P2-2", "/img/regular/grizzly.png");
-     */
 
-    private void addCardSlot(Parent root, String slotId, String imagePath){
-        StackPane slot = (StackPane) root.lookup("#" + slotId);
-
-        if (slot != null) {
-            setSlotImage(slot, imagePath);
-        } else {
-            System.err.println("Slot não encontrado (verifique o ID: use P1-0..P1-7 ou P2-0..P2-7).");
-        }
-    }
 
     /**
      * Verifica a qual jogador o identificador de slot pertence.
@@ -414,158 +414,127 @@ public class GameScreen {
     }
 
 
-    /**
-     * Remove a imagem de um slot do tabuleiro e restaura o estado vazio.
-     *
-     * @param root   layout principal da tela (VBox)
-     * @param slotId ID do slot (ex: "P1-0", "P2-3")
-     *
-     * Exemplo:
-     *   removeCardSlot(root, "P1-2");
-     */
-    private void removeCardSlot(Parent root, String slotId) {
-        // Busca o StackPane com o ID especificado
-        StackPane slot = (StackPane) root.lookup("#" + slotId);
-
-        if (slot != null) {
-            // Limpa o conteúdo do slot
-            slot.getChildren().clear();
-
-            // Adiciona novamente o rótulo (ID) para identificação visual
-            Label tag = new Label(slotId);
-            tag.setTextFill(Color.web("#f0e6d2", 0.65));
-            tag.setFont(Font.font("Consolas", 12));
-            slot.getChildren().add(tag);
-
-            // Restaura o estilo original do slot vazio
-            slot.setStyle(
-                    "-fx-background-color: rgba(80,60,60,0.35);" +
-                            "-fx-border-color: #8a6a6a;" +
-                            "-fx-border-radius: 5;" +
-                            "-fx-background-radius: 5;" +
-                            "-fx-border-width: 2;"
-            );
-        }
-    }
 
     //============================================
     //Mao do jogador
     //============================================
 
 
-    /**
-     * Adiciona uma nova carta à mão do jogador.
-     *
-     * - Gera ID único para debug
-     * - Aplica imagem
-     * - Garante que não ultrapasse 7 cartas
-     */
-    private void addCardToHand(HBox handBox, String imagePath) {
+
+    // --------------------------------------------------------------
+// Adiciona uma carta existente à mão do jogador (HBox) com limite de 7 cartas.
+// Esta função APENAS insere a carta; não cria nem adiciona handlers de UI.
+// Os hovers e seleções são tratados pelo próprio HBox (delegação de eventos).
+// Exemplo de uso:
+// Card newCard = new Card("P1-CARD-0", "Grizzly", "/images/card_back.png");
+// addCardToHandBox(handBoxP1, newCard);
+//
+// @param handBox o HBox que representa a mão do jogador onde a carta será adicionada
+// @param card    o objeto Card que será adicionado à mão
+// --------------------------------------------------------------
+    private void addCardToHandBox(HBox handBox, Card card) {
         // Limite máximo de 7 cartas
         if (handBox.getChildren().size() >= 7) {
             System.out.println("Limite máximo de 7 cartas atingido.");
             return;
         }
 
-        StackPane card = new StackPane();
-
-        // --- TAMANHO DA CARTA ---
-        card.setMinWidth(CARD_WIDTH);
-        card.setMinHeight(CARD_HEIGHT);
-        card.setMaxWidth(CARD_WIDTH);
-        card.setMaxHeight(CARD_HEIGHT);
-
-        // --- ID ÚNICO ---
-        card.setId(handBox.getId() + "-CARD-" + handBox.getChildren().size());
-
-        // --- INSERE A IMAGEM NO SLOT ---
-        setSlotImage(card, imagePath);
-
         // --- INSERE A CARTA ---
         handBox.getChildren().add(card);
-
-
-        // --- HOVER: animação de zoom ao passar o mouse ---
-        card.setOnMouseEntered(e -> {
-            // reseta vizinhos (um único zoom por vez)
-            for (Node sib : handBox.getChildren()) {
-                if (sib != card) {
-                    sib.setScaleX(1.0);
-                    sib.setScaleY(1.0);
-                    sib.setViewOrder(0); //plano normal
-                }
-            }
-
-            // traz pra frente
-            card.setViewOrder(-1);
-
-            ScaleTransition st = new ScaleTransition(Duration.millis(140), card);
-            st.setToX(1.25);
-            st.setToY(1.25);
-            st.setInterpolator(Interpolator.EASE_BOTH);
-            st.play();
-        });
-
-        card.setOnMouseExited(e -> {
-            ScaleTransition st = new ScaleTransition(Duration.millis(120), card);
-            st.setToX(1.0);
-            st.setToY(1.0);
-            st.setInterpolator(Interpolator.EASE_BOTH);
-            st.play();
-
-            // volta pro plano normal
-            card.setViewOrder(0);
-        });
-
-        // guardar o caminho da imagem dentro do node
-        card.getProperties().put("imagePath", imagePath);
-
-    // clique para selecionar/deselecionar a carta
-        card.setOnMouseClicked(e -> {
-            if (selectedCardNode == card) {
-                // já estava selecionada → desmarca
-                clearSelection();
-                return;
-            }
-            // seleciona esta carta
-            selectCard(card); // Funçao que seleciona
-        });
-
-
     }
 
-    /**
-     * Cria o container da mão do jogador (HBox)
-     * - Suporta no máximo 7 cartas lado a lado
-     */
+
+    // Cria o container da mão do jogador (HBox) com delegação de eventos.
+// - Suporta até 7 cartas lado a lado.
+// - Os efeitos de hover e seleção são tratados diretamente pelo HBox.
+// Exemplo de uso:
+// HBox handBoxP1 = createPlayerHand("P1");
+// Card card = new Card("P1-CARD-0", "Grizzly", "/images/card_back.png");
+// addCardToHandBox(handBoxP1, card);
+//
+// @param prefix prefixo/ID para identificar a mão (ex.: "P1", "P2")
+// @return HBox configurado para receber cartas com efeitos visuais
     private HBox createPlayerHand(String prefix) {
         HBox hand = new HBox();
 
         // --- LAYOUT ---
-        hand.setSpacing(HAND_SPACING);
-        hand.setAlignment(Pos.CENTER_LEFT); // alinhar à esquerda ajuda no cálculo do overlay
-        hand.setId(prefix);
-
+        hand.setSpacing(HAND_SPACING); // espaço entre as cartas
+        hand.setAlignment(Pos.CENTER_LEFT); // mantém as cartas alinhadas à esquerda
+        hand.setId(prefix); // define o ID (ex.: “P1”)
 
         // --- TAMANHO FIXO ---
-        //
-        // (ex.: 7 cartas “naturais” lado a lado)
-        double fixedWidth = (CARD_WIDTH * 7) + (HAND_SPACING * 6); //quantas cartas cabem
+        // Calcula a largura total com base em 7 cartas e espaçamento entre elas
+        double fixedWidth = (CARD_WIDTH * 7) + (HAND_SPACING * 6);
         hand.setMinWidth(fixedWidth);
         hand.setPrefWidth(fixedWidth);
         hand.setMaxWidth(fixedWidth);
 
-        // altura travada na altura da carta
+        // Define a altura fixa igual à altura da carta
         hand.setMinHeight(CARD_HEIGHT);
         hand.setPrefHeight(CARD_HEIGHT);
         hand.setMaxHeight(CARD_HEIGHT);
+
+        // --------------------------------------------------------------
+        // DELEGAÇÃO DE EVENTOS (apenas no container)
+        // --------------------------------------------------------------
+        // A ideia é aplicar o comportamento de hover e seleção
+        // para qualquer carta dentro deste HBox, sem precisar
+        // adicionar listeners individualmente em cada Card.
+        // --------------------------------------------------------------
+
+        // HOVER IN
+        hand.addEventFilter(MouseEvent.MOUSE_ENTERED_TARGET, e -> {
+            Card card = pickCardFromEventTarget(e.getTarget());
+            if (card != null) {
+                for (Node sib : hand.getChildren()) {
+                    if (sib != card) {
+                        sib.setScaleX(1.0);
+                        sib.setScaleY(1.0);
+                        sib.setViewOrder(0);
+                    }
+                }
+                card.setViewOrder(-1);
+                ScaleTransition st = new ScaleTransition(Duration.millis(140), card);
+                st.setToX(1.25);
+                st.setToY(1.25);
+                st.setInterpolator(Interpolator.EASE_BOTH);
+                st.play();
+            }
+        });
+
+// HOVER OUT
+        hand.addEventFilter(MouseEvent.MOUSE_EXITED_TARGET, e -> {
+            Card card = pickCardFromEventTarget(e.getTarget());
+            if (card != null) {
+                ScaleTransition st = new ScaleTransition(Duration.millis(120), card);
+                st.setToX(1.0);
+                st.setToY(1.0);
+                st.setInterpolator(Interpolator.EASE_BOTH);
+                st.play();
+                card.setViewOrder(0);
+            }
+        });
+
+// CLICK (seleção)
+        hand.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
+            Card card = pickCardFromEventTarget(e.getTarget());
+            if (card != null) {
+                if (selectedCardNode == card) {
+                    clearSelection();
+                } else {
+                    selectCard(card); // aqui o highlight(true) será chamado
+                }
+                e.consume();
+            }
+        });
 
 
         return hand;
     }
 
 
-private void passTurn() {
+
+    private void passTurn() {
         System.out.println("Pass turn.");
 
         // alterna a vez
@@ -579,33 +548,30 @@ private void passTurn() {
 
 
     // === helpers de seleção ===
-    private void selectCard(StackPane card) {
-        clearSelection(); // garante seleção única
+    private void selectCard(Card card) {
+        clearSelection();              // garante seleção única
+        selectedCardNode = card;       // já é Card
 
-        selectedCardNode = card;
-        selectedCardImagePath = (String) card.getProperties().get("imagePath");
-
-
-        //Coloca BRILHO/DESTAQUE
-        card.setStyle(card.getStyle() + "; -fx-effect: dropshadow(gaussian, #f0e6d2, 18, 0.3, 0, 0);");
-
+        card.highlight(true); //faz brilhar
+        System.out.println("Carta selecionada");
     }
 
     private void clearSelection() {
         if (selectedCardNode != null) {
-
-            // restaura estilo base do card
-            selectedCardNode.setStyle("");
-
+            selectedCardNode.highlight(false);
         }
         selectedCardNode = null;
-        selectedCardImagePath = null;
+
     }
 
 
+
+
+
+
     // === posicionar carta no slot, validando turno e ocupação ===
-    private void slotClick(StackPane slot) {
-        // precisa ter carta selecionada
+    private void dropCard(StackPane slot) {
+        // precisa ter carta selecionada se nao tiver sai da fnção
         if (selectedCardNode == null) {
             return;
         }
@@ -627,17 +593,36 @@ private void passTurn() {
             return;
         }
 
-        // coloca a imagem da carta no slot (setSlotImage já cuida de rotacionar P2)
-        setSlotImage(slot, selectedCardImagePath);
+        // substitui o placeholder pela própria Card e marca como ocupado
+        slot.getChildren().setAll(selectedCardNode);
         slot.getProperties().put("occupied", Boolean.TRUE);
 
-        // remove a carta da mão (independe de qual mão for — pega o pai)
-        if (selectedCardNode.getParent() instanceof HBox parentHand) {
-            parentHand.getChildren().remove(selectedCardNode);
+        // usa os metadados para atualizar a Card
+        Integer row = (Integer) slot.getProperties().get("row");
+        Integer col = (Integer) slot.getProperties().get("col");
+        if (row != null && col != null) {
+            selectedCardNode.setPos(row, col);
+            System.out.println("Card foi para (" + row + "," + col + ")");
+        }
+
+        // remove da mão do jogador
+        if (selectedCardNode.getParent() instanceof HBox hand) {
+            hand.getChildren().remove(selectedCardNode);
         }
 
         // limpa seleção
         clearSelection();
+    }
+
+    private Card pickCardFromEventTarget(Object target) {
+        // Se não é Node, não temos como subir a árvore
+        if (!(target instanceof Node n)) return null;
+
+        // Sobe pelos pais até achar uma Card
+        while (n != null && !(n instanceof Card)) {
+            n = n.getParent();
+        }
+        return (n instanceof Card c) ? c : null;
     }
 
 
