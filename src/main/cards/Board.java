@@ -1,3 +1,5 @@
+package cards;
+
 public class Board {
     // Constants for board dimensions
     private static final int width = 4;

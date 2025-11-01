@@ -1,3 +1,7 @@
+package cards;
+import sigils.Sigil;
+
+
 import java.util.ArrayList;
 // We are using collections just for safety
 import java.util.Collections;
@@ -8,8 +12,9 @@ public final class CreatureCard extends Card {
     private int health;
     private final int bloodCost;
     private final int bonesCost;
-    // List type is for interface type (an array of elements of Sigil type inside)
+    // List type is for interface type (an array of elements of Sigils.Sigil type inside)
     private final List<Sigil> sigils = new ArrayList<>();
+
 
     public CreatureCard(String id, String name, int attack, int health, int bloodCost, int bonesCost, String imagePath) {
         // super calls Card constructor

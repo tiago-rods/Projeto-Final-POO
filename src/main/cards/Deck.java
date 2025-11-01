@@ -1,3 +1,8 @@
+package cards;
+
+import sigils.FlySigil;
+import sigils.Sigil;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -51,7 +56,7 @@ public class Deck {
         CreatureCard stuntedWolf1 = new CreatureCard("stuntedWolf1", "stuntedWolf", 2, 2, 1, 0, "/img/regular/wolf_talking.png");
         deck.add(stuntedWolf1);
 
-        // Teste de FlySigil
+        // Teste de Sigils.FlySigil
         CreatureCard raven1 = new CreatureCard("raven1", "raven", 2, 3, 2, 0, "/img/regular/raven.png");
         raven1.addSigil(fly);
 
@@ -78,17 +83,17 @@ public class Deck {
     }
 
     // Adds a card to deck
-    public void addCard(CreatureCard card) {
+    public void addCardToDeck(CreatureCard card) {
         deck.add(card);
     }
 
     // draw a Squirrel
-    public CreatureCard drawSquirrel() {
-        if (squirrelDeck.isEmpty()) {
-            return null;
-        }
+    public void drawSquirrel(List<Card> hand) {
         // Remove do início (pode embaralhar antes se quiser aleatoriedade)
-        return squirrelDeck.remove(0);
+        CreatureCard squirrelCard = squirrelDeck.remove(0);
+        if (squirrelCard != null) {
+            hand.add(squirrelCard);
+        }
     }
 
     // Maybe we will need it
@@ -111,27 +116,24 @@ public class Deck {
         Collections.shuffle(deck, random);
     }
 
-    // draw a card from the "top"
-    public CreatureCard draw() {
-        if (deck.isEmpty()) {
-            return null; // No cards to draw
+    // draw a card from the "top" and adds it to hand
+    public void draw(List<Card> hand) {
+        CreatureCard card = deck.remove(0);
+        if (card != null) {
+            hand.add(card);
         }
-
-        return deck.remove(0);
     }
 
     // Draw multiple cards
-    public List<CreatureCard> draw(int amount) {
-        List<CreatureCard> drawnCards = new ArrayList<>();
+    public void draw(int amount, List<Card> hand) {
         for (int i = 0; i < amount; i++) {
-            CreatureCard card = draw();
+            CreatureCard card = deck.remove(0);
             if (card != null) {
-                drawnCards.add(card);
+                hand.add(card);
             } else {
                 break; // No more cards
             }
         }
-        return drawnCards;
     }
 
     // Discard a card

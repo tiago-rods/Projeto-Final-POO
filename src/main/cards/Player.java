@@ -1,6 +1,6 @@
-import Items.Items;
+package cards;
 
-import javax.swing.*;
+import items.*;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -36,6 +36,13 @@ public class Player {
     public List<Card> getHand() { return hand; } // retorna as cartas na mão do jogador
     public List<Card> getGraveyard() { return graveyard; } // retorna as cartas no cemitério do jogador
     public List<Items> getItems() { return items; } // retorna os itens do jogador
+
+    public Card removeCardFromHand(int position) {
+        if (position < 0 || position >= hand.size()) {
+            return null;
+        }
+        return hand.remove(position); // retorna a carta já excluída da mão do jogador
+    }
 
     public boolean isAlive() { return lives > 0; } // verifica se o jogador ainda está vivo
 
