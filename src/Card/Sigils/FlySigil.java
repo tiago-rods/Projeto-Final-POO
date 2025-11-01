@@ -1,3 +1,4 @@
+package Sigils;
 
 public class FlySigil implements Sigil {
     @Override
