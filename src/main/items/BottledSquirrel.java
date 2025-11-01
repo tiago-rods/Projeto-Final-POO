@@ -1,5 +1,6 @@
 package items;
 
+
 public class BottledSquirrel implements Items {
     @Override
     public String name() {return "BottledSquirrel"; }
