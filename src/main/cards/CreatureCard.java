@@ -1,5 +1,5 @@
 package cards;
-import sigils.Sigil;
+import sigils.*;
 
 
 import java.util.ArrayList;

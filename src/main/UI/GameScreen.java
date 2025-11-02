@@ -1,5 +1,6 @@
-package cards;
+package UI;
 
+import cards.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.geometry.Insets;
@@ -18,7 +19,6 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-import javafx.scene.Parent;
 import javafx.geometry.VPos;
 import javafx.animation.Interpolator;
 import javafx.animation.ScaleTransition;
