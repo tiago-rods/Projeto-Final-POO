@@ -1,5 +1,7 @@
 package cards;
 
+import javafx.scene.effect.DropShadow;
+import javafx.scene.Cursor;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.geometry.Insets;
@@ -195,7 +197,7 @@ public class GameScreen {
         boardArea.setStyle(
                 "-fx-background-color: #2b2222;" +
                         "-fx-border-color: #6a4c4c;" +
-                        "-fx-border-style: segments(10, 10) line-cap round;" +
+                        "-fx-border-style: dashed;" +
                         "-fx-border-width: 3;"
         );
         boardArea.setAlignment(Pos.TOP_CENTER);
@@ -212,8 +214,38 @@ public class GameScreen {
         playerHandP1 = createPlayerHand("HAND-P1");
         playerHandP1.setAlignment(Pos.CENTER);
 
-// Empilha: topo (P2) / divisor / baixo (P1)
-        boardArea.getChildren().addAll(topGrid, centerDivider, bottomGrid, playerHandP1);
+
+
+        // ====== ÁREA DE DECKS (CANTO DIREITO INFERIOR) ======
+        HBox deckArea = new HBox(30); // espaçamento entre os montes
+        deckArea.setAlignment(Pos.BOTTOM_RIGHT);
+        deckArea.setPadding(new Insets(0, 30, 15, 0)); // afastar da borda
+
+// Monte de Criaturas
+        StackPane deckCreatures = createDeckPlaceholder(
+                "DeckCriaturas",
+                "/img/regular/backs/common.png",
+                "Criaturas"
+        );
+
+// Monte de Esquilos
+        StackPane deckSquirrels = createDeckPlaceholder(
+                "DeckEsquilos",
+                "/img/regular/backs/squirrel.png",
+                "Esquilos"
+        );
+
+        deckArea.getChildren().addAll(deckCreatures, deckSquirrels);
+
+// ====== JUNTA GRID + DECKS ======
+        StackPane boardWithDecks = new StackPane();
+        boardWithDecks.getChildren().addAll(bottomGrid, deckArea);
+        StackPane.setAlignment(deckArea, Pos.BOTTOM_RIGHT);
+
+// Monta estrutura geral
+        boardArea.getChildren().addAll(topGrid, centerDivider, boardWithDecks, playerHandP1);
+
+
 
 // ====== COMPOSIÇÃO E PROPORÇÕES ======
         root.getChildren().addAll(leftPanel, boardArea);
@@ -626,6 +658,60 @@ public class GameScreen {
         }
         return (n instanceof Card c) ? c : null;
     }
+
+
+    // Criação da Área de armazenamento de cartas
+    private StackPane createDeckPlaceholder(String id, String imagePath, String deckType) {
+        StackPane deck = new StackPane();
+        deck.setId(id);
+        deck.setMaxHeight(CARD_HEIGHT*1.2);
+        deck.setMaxWidth(CARD_WIDTH);
+        deck.setPrefSize(CARD_WIDTH, CARD_HEIGHT);
+        deck.setAlignment(Pos.CENTER);
+
+        // ----- Cria as "camadas" do deck -----
+        for (int i = 0; i < 3; i++) {
+            Image img = new Image(getClass().getResource(imagePath).toExternalForm(), false);
+            ImageView iv = new ImageView(img);
+            iv.setPreserveRatio(true);
+            iv.setFitWidth(CARD_WIDTH);
+            iv.setFitHeight(CARD_HEIGHT);
+            iv.setTranslateY(-i * 3); // desloca levemente para criar efeito de pilha
+            deck.getChildren().add(iv);
+        }
+
+
+        // ----- Efeito de hover -----
+        deck.setOnMouseEntered(e -> {
+            deck.setScaleX(1.08);
+            deck.setScaleY(1.08);
+            deck.setCursor(Cursor.HAND);
+            deck.setEffect(new DropShadow(20, Color.rgb(220,180,180,0.5)));
+        });
+
+        deck.setOnMouseExited(e -> {
+            deck.setScaleX(1);
+            deck.setScaleY(1);
+            deck.setEffect(null);
+        });
+
+        // ----- Clique: comprar carta -----
+        deck.setOnMouseClicked(e -> {
+            String type = deckType.equals("Esquilos") ? "Squirrel" : "Beast";
+            String name = deckType.equals("Esquilos") ? "Esquilo" : "NovaCriatura";
+            String imgPath = deckType.equals("Esquilos")
+                    ? "/img/regular/backs/squirrel.png"
+                    : "/img/regular/backs/common.png";
+
+            System.out.println(deckType + " clicado! Comprando " + name + "...");
+
+            Card newCard = new Card(type + "-" + System.currentTimeMillis(), name, imgPath);
+            addCardToHandBox(playerHandP1, newCard);
+        });
+
+        return deck;
+    }
+
 
 
     //Fim
