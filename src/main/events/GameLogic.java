@@ -1,3 +1,5 @@
+package events;
+
 import cards.Board;
 import cards.Card;
 import cards.Deck;

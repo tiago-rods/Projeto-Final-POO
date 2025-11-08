@@ -1,5 +1,6 @@
 package cards;
 
+import events.GameLogic;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.Cursor;
 import javafx.scene.image.Image;
@@ -32,8 +33,15 @@ import javafx.util.Duration;
 
 public class GameScreen {
 
-    //====== medidas padrao
+    // Passando o game para ca, a gnt tem controle de todos as informações da partida
+    private final GameLogic game;
 
+    // ==== CONSTRUTOR ====
+    public GameScreen(GameLogic game) {
+        this.game  = game;
+    }
+
+    //====== medidas padrao
     private static final double CARD_WIDTH = 100;   // largura padrão da carta
     private static final double CARD_HEIGHT = 150;   // altura padrão da carta
 
@@ -48,18 +56,6 @@ public class GameScreen {
 
     // label de turno
     private Label turnLabel;
-
-
-    // ==== CONSTRUTOR ====
-    //public GameScreen(String player1Name, String player2Name) {
-    //    this.player1Name = player1Name;
-     //   this.player2Name = player2Name;
-//
-// O jogador 1 sempre começa
-    //    this.isPlayer1Turn = true;
-//
-//   System.out.println("Novo jogo iniciado: " + player1Name + " vs " + player2Name);
-//    }TODO: construtor, caso queira mais pra frente incializar o jogo com nomes
 
 
     // ===== TELA DE JOGO =====
@@ -221,14 +217,14 @@ public class GameScreen {
         deckArea.setAlignment(Pos.BOTTOM_RIGHT);
         deckArea.setPadding(new Insets(0, 30, 15, 0)); // afastar da borda
 
-// Monte de Criaturas
+        // Monte de Criaturas
         StackPane deckCreatures = createDeckPlaceholder(
                 "DeckCriaturas",
                 "/img/regular/backs/common.png",
                 "Criaturas"
         );
 
-// Monte de Esquilos
+        // Monte de Esquilos
         StackPane deckSquirrels = createDeckPlaceholder(
                 "DeckEsquilos",
                 "/img/regular/backs/squirrel.png",
@@ -237,12 +233,12 @@ public class GameScreen {
 
         deckArea.getChildren().addAll(deckCreatures, deckSquirrels);
 
-// ====== JUNTA GRID + DECKS ======
+        // ====== JUNTA GRID + DECKS ======
         StackPane boardWithDecks = new StackPane();
         boardWithDecks.getChildren().addAll(bottomGrid, deckArea);
         StackPane.setAlignment(deckArea, Pos.BOTTOM_RIGHT);
 
-// Monta estrutura geral
+        // Monta estrutura geral
         boardArea.getChildren().addAll(topGrid, centerDivider, boardWithDecks, playerHandP1);
 
 
@@ -263,6 +259,14 @@ public class GameScreen {
 
 // ===== TROCA DE CONTEÚDO DA CENA =====
         stage.getScene().setRoot(root);
+
+
+        // Adicionando cartas iniciais ao começar o jogo:
+        for (Card card : game.getPlayer1().getHand()) {
+            addCardToHandBox(playerHandP1, card);
+        }
+
+
     }
 // ==========================================================
 // === MÉTODOS AUXILIARES    ===
@@ -476,6 +480,8 @@ public class GameScreen {
         // --- INSERE A CARTA ---
         handBox.getChildren().add(card);
     }
+
+    // Suponho(rafa) que de para usar handBox.getChildren() como índices das cartas
 
 
     // Cria o container da mão do jogador (HBox) com delegação de eventos.
@@ -697,7 +703,7 @@ public class GameScreen {
 
         // ----- Clique: comprar carta -----
         deck.setOnMouseClicked(e -> {
-            String type = deckType.equals("Esquilos") ? "Squirrel" : "Beast";
+            String type = deckType.equals("Esquilos") ? "Squirrel" : "Creature";
             String name = deckType.equals("Esquilos") ? "Esquilo" : "NovaCriatura";
             String imgPath = deckType.equals("Esquilos")
                     ? "/img/regular/backs/squirrel.png"
