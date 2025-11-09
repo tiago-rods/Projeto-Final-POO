@@ -1,6 +1,11 @@
 package UI;
-
 import cards.*;
+import events.*;
+
+
+import events.GameLogic;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.Cursor;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.geometry.Insets;
@@ -19,6 +24,7 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.scene.Parent;
 import javafx.geometry.VPos;
 import javafx.animation.Interpolator;
 import javafx.animation.ScaleTransition;
@@ -30,8 +36,15 @@ import javafx.util.Duration;
 
 public class GameScreen {
 
-    //====== medidas padrao
+    // Passando o game para ca, a gnt tem controle de todos as informações da partida
+    private final GameLogic game;
 
+    // ==== CONSTRUTOR ====
+    public GameScreen(GameLogic game) {
+        this.game  = game;
+    }
+
+    //====== medidas padrao
     private static final double CARD_WIDTH = 100;   // largura padrão da carta
     private static final double CARD_HEIGHT = 150;   // altura padrão da carta
 
@@ -46,18 +59,6 @@ public class GameScreen {
 
     // label de turno
     private Label turnLabel;
-
-
-    // ==== CONSTRUTOR ====
-    //public GameScreen(String player1Name, String player2Name) {
-    //    this.player1Name = player1Name;
-     //   this.player2Name = player2Name;
-//
-// O jogador 1 sempre começa
-    //    this.isPlayer1Turn = true;
-//
-//   System.out.println("Novo jogo iniciado: " + player1Name + " vs " + player2Name);
-//    }TODO: construtor, caso queira mais pra frente incializar o jogo com nomes
 
 
     // ===== TELA DE JOGO =====
@@ -195,7 +196,7 @@ public class GameScreen {
         boardArea.setStyle(
                 "-fx-background-color: #2b2222;" +
                         "-fx-border-color: #6a4c4c;" +
-                        "-fx-border-style: segments(10, 10) line-cap round;" +
+                        "-fx-border-style: dashed;" +
                         "-fx-border-width: 3;"
         );
         boardArea.setAlignment(Pos.TOP_CENTER);
@@ -212,8 +213,38 @@ public class GameScreen {
         playerHandP1 = createPlayerHand("HAND-P1");
         playerHandP1.setAlignment(Pos.CENTER);
 
-// Empilha: topo (P2) / divisor / baixo (P1)
-        boardArea.getChildren().addAll(topGrid, centerDivider, bottomGrid, playerHandP1);
+
+
+        // ====== ÁREA DE DECKS (CANTO DIREITO INFERIOR) ======
+        HBox deckArea = new HBox(30); // espaçamento entre os montes
+        deckArea.setAlignment(Pos.BOTTOM_RIGHT);
+        deckArea.setPadding(new Insets(0, 30, 15, 0)); // afastar da borda
+
+        // Monte de Criaturas
+        StackPane deckCreatures = createDeckPlaceholder(
+                "DeckCriaturas",
+                "/img/regular/backs/common.png",
+                "Criaturas"
+        );
+
+        // Monte de Esquilos
+        StackPane deckSquirrels = createDeckPlaceholder(
+                "DeckEsquilos",
+                "/img/regular/backs/squirrel.png",
+                "Esquilos"
+        );
+
+        deckArea.getChildren().addAll(deckCreatures, deckSquirrels);
+
+        // ====== JUNTA GRID + DECKS ======
+        StackPane boardWithDecks = new StackPane();
+        boardWithDecks.getChildren().addAll(bottomGrid, deckArea);
+        StackPane.setAlignment(deckArea, Pos.BOTTOM_RIGHT);
+
+        // Monta estrutura geral
+        boardArea.getChildren().addAll(topGrid, centerDivider, boardWithDecks, playerHandP1);
+
+
 
 // ====== COMPOSIÇÃO E PROPORÇÕES ======
         root.getChildren().addAll(leftPanel, boardArea);
@@ -231,6 +262,14 @@ public class GameScreen {
 
 // ===== TROCA DE CONTEÚDO DA CENA =====
         stage.getScene().setRoot(root);
+
+
+        // Adicionando cartas iniciais ao começar o jogo:
+        for (Card card : game.getPlayer1().getHand()) {
+            addCardToHandBox(playerHandP1, card);
+        }
+
+
     }
 // ==========================================================
 // === MÉTODOS AUXILIARES    ===
@@ -329,7 +368,7 @@ public class GameScreen {
 
         //boolean ocupado = Boolean.TRUE.equals(slot.getProperties().get("occupied"));
         //Se for true, o slot já tem uma carta; se for false, está livre
-       // clique no slot tenta posicionar a carta selecionada
+        // clique no slot tenta posicionar a carta selecionada
         slot.setOnMouseClicked(e -> dropCard(slot));
 
 
@@ -360,35 +399,35 @@ public class GameScreen {
         iv.fitWidthProperty().unbind();
         iv.fitHeightProperty().unbind();
 
-     // caso especial de arrow e paw
-            if (resourcePath.contains("arrow")) {
-                // seta reduz tamanho + opacidade
-                int inset = 25;
-                StackPane.setMargin(iv, new Insets(inset));
-                iv.fitWidthProperty().bind(slot.widthProperty().subtract(inset * 2));
-                iv.fitHeightProperty().bind(slot.heightProperty().subtract(inset * 2));
-                iv.setOpacity(0.4); //Controla opacidade
-                if (isP2(slot.getId())) { //Caso seja P2
-                    iv.setRotate(180);   //Deixar de ponta cabeca
-                }
-
-
-            } else if (resourcePath.contains("paw")) {
-                // pata apenas reduz opacidade
-                iv.fitWidthProperty().bind(slot.widthProperty());
-                iv.fitHeightProperty().bind(slot.heightProperty());
-                iv.setOpacity(0.4); //Controla opacidade
-                if (isP2(slot.getId())) { //Caso seja P2
-                    iv.setRotate(180);   //Deixar de ponta cabeca
-                }
-
-
-            } else {
-                // carta ocupa tudo
-                iv.fitWidthProperty().bind(slot.widthProperty());
-                iv.fitHeightProperty().bind(slot.heightProperty());
-
+        // caso especial de arrow e paw
+        if (resourcePath.contains("arrow")) {
+            // seta reduz tamanho + opacidade
+            int inset = 25;
+            StackPane.setMargin(iv, new Insets(inset));
+            iv.fitWidthProperty().bind(slot.widthProperty().subtract(inset * 2));
+            iv.fitHeightProperty().bind(slot.heightProperty().subtract(inset * 2));
+            iv.setOpacity(0.4); //Controla opacidade
+            if (isP2(slot.getId())) { //Caso seja P2
+                iv.setRotate(180);   //Deixar de ponta cabeca
             }
+
+
+        } else if (resourcePath.contains("paw")) {
+            // pata apenas reduz opacidade
+            iv.fitWidthProperty().bind(slot.widthProperty());
+            iv.fitHeightProperty().bind(slot.heightProperty());
+            iv.setOpacity(0.4); //Controla opacidade
+            if (isP2(slot.getId())) { //Caso seja P2
+                iv.setRotate(180);   //Deixar de ponta cabeca
+            }
+
+
+        } else {
+            // carta ocupa tudo
+            iv.fitWidthProperty().bind(slot.widthProperty());
+            iv.fitHeightProperty().bind(slot.heightProperty());
+
+        }
 
 
 
@@ -444,6 +483,8 @@ public class GameScreen {
         // --- INSERE A CARTA ---
         handBox.getChildren().add(card);
     }
+
+    // Suponho(rafa) que de para usar handBox.getChildren() como índices das cartas
 
 
     // Cria o container da mão do jogador (HBox) com delegação de eventos.
@@ -628,7 +669,60 @@ public class GameScreen {
     }
 
 
+    // Criação da Área de armazenamento de cartas
+    private StackPane createDeckPlaceholder(String id, String imagePath, String deckType) {
+        StackPane deck = new StackPane();
+        deck.setId(id);
+        deck.setMaxHeight(CARD_HEIGHT*1.2);
+        deck.setMaxWidth(CARD_WIDTH);
+        deck.setPrefSize(CARD_WIDTH, CARD_HEIGHT);
+        deck.setAlignment(Pos.CENTER);
+
+        // ----- Cria as "camadas" do deck -----
+        for (int i = 0; i < 3; i++) {
+            Image img = new Image(getClass().getResource(imagePath).toExternalForm(), false);
+            ImageView iv = new ImageView(img);
+            iv.setPreserveRatio(true);
+            iv.setFitWidth(CARD_WIDTH);
+            iv.setFitHeight(CARD_HEIGHT);
+            iv.setTranslateY(-i * 3); // desloca levemente para criar efeito de pilha
+            deck.getChildren().add(iv);
+        }
+
+
+        // ----- Efeito de hover -----
+        deck.setOnMouseEntered(e -> {
+            deck.setScaleX(1.08);
+            deck.setScaleY(1.08);
+            deck.setCursor(Cursor.HAND);
+            deck.setEffect(new DropShadow(20, Color.rgb(220,180,180,0.5)));
+        });
+
+        deck.setOnMouseExited(e -> {
+            deck.setScaleX(1);
+            deck.setScaleY(1);
+            deck.setEffect(null);
+        });
+
+        // ----- Clique: comprar carta -----
+        deck.setOnMouseClicked(e -> {
+            String type = deckType.equals("Esquilos") ? "Squirrel" : "Creature";
+            String name = deckType.equals("Esquilos") ? "Esquilo" : "NovaCriatura";
+            String imgPath = deckType.equals("Esquilos")
+                    ? "/img/regular/backs/squirrel.png"
+                    : "/img/regular/backs/common.png";
+
+            System.out.println(deckType + " clicado! Comprando " + name + "...");
+
+            Card newCard = new Card(type + "-" + System.currentTimeMillis(), name, imgPath);
+            addCardToHandBox(playerHandP1, newCard);
+        });
+
+        return deck;
+    }
+
+
+
     //Fim
 }
-
 

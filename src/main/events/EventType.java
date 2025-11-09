@@ -1,25 +1,37 @@
 package events;
 
+// Ao publicar seria assim: eventBus.publish(EventType.CARD_DRAWN);
+// Tipos de eventos que podem ocorrer no jogo
 public enum EventType {
-    //Combat events
+    // Eventos de turno
+    TURN_STARTED,
+    TURN_ENDED,
+    PHASE_CHANGED,
+
+    // Eventos de cartas
+    CARD_DRAWN,
     CARD_PLAYED,
+    CARD_MOVED,
+    CARD_SACRIFICED,
+    CARD_DESTROYED,
+
+    // Eventos de combate
     ATTACK_DECLARED,
     DAMAGE_DEALT,
-    CREATURE_DEATH,
+    CREATURE_DAMAGED,
+    CREATURE_DIED,
+    COMBAT_RESOLVED,
 
-    //Turn events
-    TURN_START,
-    TURN_END,
-    PHASE_CHANGE,
+    // Eventos de recursos
+    BONES_GAINED,
+    BONES_SPENT,
+    LIFE_LOST,
 
-    //Game events
-    GAME_START,
-    GAME_OVER,
+    // Eventos de sigilos
+    SIGIL_ACTIVATED,
 
-    //Other events
-    SACRIFICE_MADE,
-    SIGIL_TRIGGERED,
-    ITEM_USED,
-
-    //VER SE EXISTEM MAIS EVENTOS A SEREM FEITOS
+    // Eventos de jogo
+    PLAYER_ACTION,
+    GAME_STATE_CHANGED,
+    GAME_ENDED
 }

@@ -11,6 +11,9 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+
+//tentar adicionar a mesma fonte do jogo, importada para resources/font
+//quando tento adicionar a fonte não fica centralizada
 public class StartScreen {
     public Scene createScene(Stage stage) {
         // ===== TÍTULO DO JOGO =====
