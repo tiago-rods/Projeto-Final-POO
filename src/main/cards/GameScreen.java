@@ -1,5 +1,8 @@
 package cards;
 
+import events.Event;
+import events.EventBus;
+import events.EventType;
 import events.GameLogic;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.Cursor;
@@ -21,7 +24,6 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-import javafx.scene.Parent;
 import javafx.geometry.VPos;
 import javafx.animation.Interpolator;
 import javafx.animation.ScaleTransition;
@@ -35,10 +37,12 @@ public class GameScreen {
 
     // Passando o game para ca, a gnt tem controle de todos as informações da partida
     private final GameLogic game;
+    private final EventBus eventBus;
 
     // ==== CONSTRUTOR ====
-    public GameScreen(GameLogic game) {
+    public GameScreen(GameLogic game, EventBus eventBus) {
         this.game  = game;
+        this.eventBus = eventBus;
     }
 
     //====== medidas padrao
@@ -265,7 +269,6 @@ public class GameScreen {
         for (Card card : game.getPlayer1().getHand()) {
             addCardToHandBox(playerHandP1, card);
         }
-
 
     }
 // ==========================================================
@@ -703,16 +706,34 @@ public class GameScreen {
 
         // ----- Clique: comprar carta -----
         deck.setOnMouseClicked(e -> {
-            String type = deckType.equals("Esquilos") ? "Squirrel" : "Creature";
-            String name = deckType.equals("Esquilos") ? "Esquilo" : "NovaCriatura";
-            String imgPath = deckType.equals("Esquilos")
-                    ? "/img/regular/backs/squirrel.png"
-                    : "/img/regular/backs/common.png";
+            // Tipo, nome e caminho da nova carta a ser adicionada ao clicar no deck
+            // Vai sempre pegando as info do game, que é onde fica toda a lógica do jogo
+            String type;
+            String name;
+            String imgPath;
+            // Aqui cria o evento específico que será chamado ao dar publish, contendo as info necessárias
+            Event cardDrawn;
+            // se for do tipo esquilo
+            if(deckType.equals("Esquilos")) {
+                CreatureCard cardSquirrelDeck = game.getDeckP1().getSquirrelCardDeck().getFirst();
+                type = "Creature";
+                name = cardSquirrelDeck.getName();
+                imgPath = cardSquirrelDeck.getImagePath();
+                cardDrawn = new Event(EventType.CARD_DRAWN, game.getCurrentPlayer(), cardSquirrelDeck);
+            } else { // se for do tipo criatura
+                CreatureCard cardDeck = game.getDeckP1().getCardDeck().getFirst(); // pega a primeira carta do deck
+                type = "Squirrel";
+                name = cardDeck.getName();
+                imgPath = cardDeck.getImagePath();
+                cardDrawn = new Event(EventType.CARD_DRAWN, game.getCurrentPlayer(), cardDeck);
+            }
 
             System.out.println(deckType + " clicado! Comprando " + name + "...");
 
             Card newCard = new Card(type + "-" + System.currentTimeMillis(), name, imgPath);
             addCardToHandBox(playerHandP1, newCard);
+
+            eventBus.publish(cardDrawn);
         });
 
         return deck;
