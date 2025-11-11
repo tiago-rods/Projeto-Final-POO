@@ -1,10 +1,10 @@
-import UI.GameScreen;
-import UI.StartScreen;
 import cards.*;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
+import ui.screens.GameScreen;
+import ui.screens.StartScreen;
 
 public class Main extends Application {
     @Override
@@ -21,6 +21,8 @@ public class Main extends Application {
                 new GameScreen().startGame(stage); // Vai pra GameScreen
                 startScene.setOnKeyPressed(null); // remove o listener após o primeiro disparo
         });
+
+
 
         stage.setMaximized(true);
         stage.setTitle("Inscryption");

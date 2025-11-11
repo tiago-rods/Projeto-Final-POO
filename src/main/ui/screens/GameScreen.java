@@ -1,4 +1,4 @@
-package UI;
+package ui.screens;
 
 import cards.*;
 import javafx.scene.image.Image;
