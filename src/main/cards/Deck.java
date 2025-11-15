@@ -107,8 +107,13 @@ public class Deck {
     }
 
     // returns a copy of unmodifiable deck
-    public List<CreatureCard> getCards() {
+    public List<CreatureCard> getCardDeck() {
         return Collections.unmodifiableList(deck);
+    }
+
+    // returns a copy of unmodifiable squirrel deck
+    public List<CreatureCard> getSquirrelCardDeck() {
+        return Collections.unmodifiableList(squirrelDeck);
     }
 
     // shuffles the deck

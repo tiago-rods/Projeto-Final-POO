@@ -1,4 +1,5 @@
 import cards.*;
+import events.EventBus;
 import events.EventLogics;
 import events.GameLogic;
 import javafx.application.Application;
@@ -10,15 +11,18 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
 
+        // Tem que inicializar uma única vez
+        EventBus eventBus = new EventBus();
+
         Board board = new Board();
         Deck deckP1 = new Deck();
         Deck deckP2 = new Deck();
-
         Player player1 = new Player("Rafa", 1);
         Player player2 = new Player("Yano", 2);
 
         GameLogic game = new GameLogic(board, player1, player2, deckP1, deckP2);
-        EventLogics event = new EventLogics(game);
+        EventLogics event = new EventLogics(game, eventBus);
+
 
         game.initializeBothPlayers();
         // Agora vai chamando os eventos dentro de EventLogics ...
@@ -32,7 +36,7 @@ public class Main extends Application {
         //A Scene é o conteúdo dentro da janela
 
         startScene.setOnKeyPressed((KeyEvent e) -> {
-                new GameScreen(game).startGame(stage); // Vai pra GameScreen
+                new GameScreen(game, eventBus).startGame(stage); // Vai pra GameScreen
                 startScene.setOnKeyPressed(null); // remove o listener após o primeiro disparo
         });
 
