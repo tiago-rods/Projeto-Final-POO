@@ -130,6 +130,8 @@ public class GameLogic {
         int line = (player.getOrder() == 1) ? 3 : 0;
         int sacrificed = 0;
 
+
+
         for (int col = 0; col < 4 && sacrificed < amount; col++) {
             if (!board.EmptySpace(line, col)) {
                 Card card = board.removeCard(line, col);
