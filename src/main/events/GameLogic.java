@@ -48,6 +48,12 @@ public class GameLogic {
         return false;
     }
 
+
+    public boolean placeCardFromCurrentPlayerHand(int handIndex, int column) {
+        return placeCardOnBoard(currentPlayer, handIndex, column);
+    }
+
+
     // Coloca uma carta no tabuleiro (zona de posicionamento)
     public boolean placeCardOnBoard(Player player, int handIndex, int column) {
         if (handIndex < 0 || handIndex >= player.getHand().size()) {
@@ -272,7 +278,7 @@ public class GameLogic {
 
         // Compra uma carta no início do turno
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
-        drawCard(currentPlayer, currentDeck);
+
     }
 
     // Fase de preparação do turno
@@ -296,6 +302,34 @@ public class GameLogic {
             switchTurn();
         }
     }
+
+    // Compra do deck "normal" (criaturas, etc.)
+    public boolean drawFromMainDeck(Player player, Deck deck) {
+        int before = player.getHand().size();
+        deck.draw(player.getHand());      // já existe esse método
+        return player.getHand().size() > before;
+    }
+
+    // Compra do deck de Esquilos
+    public boolean drawFromSquirrelDeck(Player player, Deck deck) {
+        int before = player.getHand().size();
+        deck.drawSquirrel(player.getHand());  // já existe esse método
+        return player.getHand().size() > before;
+    }
+
+
+    // Compra do deck normal do jogador atual
+    public boolean drawFromMainDeckCurrentPlayer() {
+        Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
+        return drawFromMainDeck(currentPlayer, currentDeck);
+    }
+
+    // Compra do deck de esquilos do jogador atual
+    public boolean drawFromSquirrelDeckCurrentPlayer() {
+        Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
+        return drawFromSquirrelDeck(currentPlayer, currentDeck);
+    }
+
 
     // Getters
     public Board getBoard() { return board; }
