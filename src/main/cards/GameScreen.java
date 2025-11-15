@@ -161,9 +161,7 @@ public class GameScreen {
 
             passTurn();
 
-            Card newCard = new Card("P1-CARD-0", "Grizzly", "/img/regular/grizzly.png");
-            newCard.changeLifeIcon(1);
-            addCardToHandBox(playerHandP1, newCard);
+           createNewCard("Grizzly", 3, playerHandP1);
 
 
 
@@ -209,6 +207,8 @@ public class GameScreen {
 
         playerHandP1 = createPlayerHand("HAND-P1");
         playerHandP1.setAlignment(Pos.CENTER);
+
+
 
 
 
@@ -259,6 +259,8 @@ public class GameScreen {
 
 // ===== TROCA DE CONTEÚDO DA CENA =====
         stage.getScene().setRoot(root);
+
+
 
 
         // Adicionando cartas iniciais ao começar o jogo:
@@ -666,6 +668,14 @@ public class GameScreen {
     }
 
 
+
+   // StackPane deckCreatures = createDeckPlaceholder(
+   //         "DeckCriaturas",
+   //         "/img/regular/backs/common.png",
+   //         "Criaturas"
+   // );
+
+
     // Criação da Área de armazenamento de cartas
     private StackPane createDeckPlaceholder(String id, String imagePath, String deckType) {
         StackPane deck = new StackPane();
@@ -716,6 +726,17 @@ public class GameScreen {
         });
 
         return deck;
+    }
+
+//=============================================================================
+
+    //AQUI É ONDE REALMENTE ACONTECE, ENTAO ESSA FUNÇÃO CRIA UMA NOVA CARTA
+    private void createNewCard (String name, int hp, HBox handPlayer ){
+        Card newCard = new Card(name);
+        newCard.changeLifeIcon(hp);
+        addCardToHandBox(handPlayer, newCard);
+
+        System.out.println("Criando nova carta: " + name + " | HP: " + hp + " | Jogador: " + handPlayer);
     }
 
 

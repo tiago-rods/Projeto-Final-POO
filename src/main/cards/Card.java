@@ -5,6 +5,7 @@ import javafx.scene.layout.StackPane;
 
 
 import java.util.Objects;
+import java.util.UUID;
 
 // StackPane belongs to javaFX class = a container that stacks child nodes (such as images, text, and shapes)
 public class Card extends StackPane {
@@ -50,6 +51,13 @@ public class Card extends StackPane {
 
         getChildren().setAll(imageView);
     }
+
+    // Construtor alternativo: cria uma carta apenas com o nome,
+    // gerando automaticamente um ID único e o caminho da imagem baseado no nome.
+    public Card(String name) {
+        this(UUID.randomUUID().toString(), name, "/img/regular/" + name.toLowerCase() + ".png");
+    }
+
 
     public void highlight(boolean on) {
         setStyle(on
