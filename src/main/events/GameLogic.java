@@ -48,42 +48,94 @@ public class GameLogic {
         return false;
     }
 
+    //===========PLACE CARD
 
-    public boolean placeCardFromCurrentPlayerHand(int handIndex, int column) {
-        return placeCardOnBoard(currentPlayer, handIndex, column);
+
+    public enum PlaceCardResult {
+        SUCCESS,
+        INVALID_SPACE,        // tentou colocar em zona errada (linha de ataque, lado inimigo etc)
+        NOT_IN_CURRENT_HAND,  // índice não está na mão do jogador atual
+        NOT_A_CREATURE,       // carta não é criatura
+        NOT_ENOUGH_SACRIFICES,
+        NOT_ENOUGH_BONES,
+        SLOT_OCCUPIED         // já tem carta naquela coluna da sua linha de posicionamento
     }
 
 
-    // Coloca uma carta no tabuleiro (zona de posicionamento)
-    public boolean placeCardOnBoard(Player player, int handIndex, int column) {
-        if (handIndex < 0 || handIndex >= player.getHand().size()) {
-            return false;
+
+
+
+
+    public PlaceCardResult tryPlaceCardFromCurrentPlayerHand(int handIndex, int targetLine, int targetCol) {
+
+        // 1) Verifica se o alvo é uma zona de posicionamento do jogador atual
+        Board.SpaceType spaceType = board.getSpaceType(targetLine, targetCol);
+
+        if (currentPlayer.getOrder() == 1) {
+            if (spaceType != Board.SpaceType.PLAYER_1_POSITIONING) {
+                return PlaceCardResult.INVALID_SPACE;
+            }
+        } else { // order == 2
+            if (spaceType != Board.SpaceType.PLAYER_2_POSITIONING) {
+                return PlaceCardResult.INVALID_SPACE;
+            }
         }
 
-        Card card = player.getHand().get(handIndex);
-
-        // Verifica se é uma CreatureCard
-        if (!(card instanceof CreatureCard)) {
-            return false;
+        // 2) Verifica se a carta está na mão real do jogador atual
+        if (handIndex < 0 || handIndex >= currentPlayer.getHand().size()) {
+            return PlaceCardResult.NOT_IN_CURRENT_HAND;
         }
 
-        CreatureCard creature = (CreatureCard) card;
-
-        // Verifica se pode pagar o custo
-        if (!canPayCost(player, creature)) {
-            return false;
+        Card baseCard = currentPlayer.getHand().get(handIndex);
+        if (!(baseCard instanceof CreatureCard creature)) {
+            return PlaceCardResult.NOT_A_CREATURE;
         }
 
-        // Tenta colocar no tabuleiro
-        if (board.placeCard(card, column, player.getOrder())) {
-            // Remove da mão e paga o custo
-            player.removeCardFromHand(handIndex);
-            payCost(player, creature);
-            return true;
+        // 3) Verifica se o slot está vazio na linha de posicionamento do player
+        int linePos = (currentPlayer.getOrder() == 1) ? 3 : 0;
+        if (!board.EmptySpace(linePos, targetCol)) {
+            return PlaceCardResult.SLOT_OCCUPIED;
         }
 
-        return false;
+        // 4) Verifica custo com mais detalhe
+        int bloodCost = creature.getBloodCost();
+        int bonesCost = creature.getBonesCost();
+
+        if (bloodCost > 0) {
+            int sacrificeable = countSacrificeableCards(currentPlayer);
+            if (sacrificeable < bloodCost) {
+                return PlaceCardResult.NOT_ENOUGH_SACRIFICES;
+            }
+        }
+
+        if (bonesCost > 0 && currentPlayer.getBones() < bonesCost) {
+            return PlaceCardResult.NOT_ENOUGH_BONES;
+        }
+
+        // 5) Paga o custo ANTES de colocar a carta
+        payCost(currentPlayer, creature);
+
+        // 6) Coloca de fato no board (usa a API atual baseada em playerOrder)
+        boolean placed = board.placeCard(baseCard, targetCol, currentPlayer.getOrder());
+        if (!placed) {
+
+            return PlaceCardResult.SLOT_OCCUPIED;
+        } else{
+            System.out.println(
+                    "Carta adicionada em jogo: " + creature.getName() +
+                            " | Posição: linha " + creature.getPosLine() +
+                            ", coluna " + creature.getPosCol()
+            );
+
+            board.printBoard();
+        }
+
+        // 7) Remove da mão
+        currentPlayer.removeCardFromHand(handIndex);
+
+        return PlaceCardResult.SUCCESS;
     }
+
 
     // Verifica se o jogador pode pagar o custo da carta
     private boolean canPayCost(Player player, CreatureCard card) {

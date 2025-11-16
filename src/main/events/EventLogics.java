@@ -86,13 +86,6 @@ public class EventLogics {
         Player player = event.getPlayer();
         Card card = event.getCard();
 
-        if (player == game.getPlayer1()) {
-            game.drawCard(game.getPlayer1(), game.getDeckP1());
-        } else if (player == game.getPlayer2()) {
-            game.drawCard(game.getPlayer2(), game.getDeckP2());
-        } else {
-            System.out.println("Erro ao comprar carta");
-        }
 
         System.out.println("📋 " + player.getName() + " drew: " + card.getName());
         System.out.println("📝 " + player.getName() + " now has " + player.getHand().size() + " cards in hand.");

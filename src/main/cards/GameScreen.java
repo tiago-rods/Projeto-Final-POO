@@ -528,48 +528,35 @@ public class GameScreen {
             return;
         }
 
+        // 2) Descobre posição lógica no Board
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) {
+            System.out.println("Slot sem coordenadas lógicas.");
+            return;
+        }
+        int line = coords[0];
+        int col  = coords[1];
+
         Player current = game.getCurrentPlayer();
 
-        // 2) Jogador da vez SEMPRE joga na faixa BOTTOM (visual)
-        if (!isBottomSlot(slot.getId())) {
-            System.out.println("Não é o lado do jogador da vez.");
-            return;
-        }
-
-        // 3) Verifica se é linha de posicionamento ou de ataque
-        if (isAttackSlot(slot)) {
-            System.out.println("Não pode colocar carta diretamente na linha de ataque.");
-            return;
-        }
-
-        if (!isPositioningSlot(slot)) {
-            System.out.println("Slot inválido para posicionar carta.");
-            return;
-        }
-
-        // 4) Coluna do slot (a lógica decide a linha com base no playerOrder)
-        Integer col = (Integer) slot.getProperties().get("col");
-        if (col == null) {
-            System.out.println("Slot sem coluna definida.");
-            return;
-        }
-
-        // 5) Índice da carta na mão REAL
+        // 3) Índice da carta na mão REAL
         int handIndex = current.getHand().indexOf(selectedCardNode);
         if (handIndex == -1) {
             System.out.println("Carta selecionada não está na mão do jogador atual.");
             return;
         }
 
-        // 6) Delega para a lógica REAL do jogo
-        boolean placed = game.placeCardFromCurrentPlayerHand(handIndex, col);
+        // 4) Delega 100% para a lógica
+        GameLogic.PlaceCardResult result =
+                game.tryPlaceCardFromCurrentPlayerHand(handIndex, line, col);
 
-        if (!placed) {
-            System.out.println("Não foi possível colocar a carta no tabuleiro (custo, espaço, etc).");
+        if (result != GameLogic.PlaceCardResult.SUCCESS) {
+            System.out.println("Não foi possível colocar a carta: " + result);
+            // aqui depois você pode colocar animações/feedbacks diferentes pra cada motivo
             return;
         }
 
-        // 7) A UI agora só reflete o estado REAL
+        // 5) UI só reflete o estado REAL
         clearSelection();
         refreshHandsFromGame();
         refreshBoardFromGame();
@@ -644,13 +631,7 @@ public class GameScreen {
 
     //=============================================================================
 
-    private void refreshHandsFromGame() {
-        Player current = game.getCurrentPlayer();
-        playerHandP1.getChildren().clear();
-        for (Card card : current.getHand()) {
-            addCardToHandBox(playerHandP1, card);
-        }
-    }
+
 
     private void passTurn() {
         System.out.println("Pass turn.");
@@ -719,7 +700,21 @@ public class GameScreen {
         }
     }
 
-    // Mapeia uma posição do Board (line, col) para o slot visual correto
+
+    /**
+     * Converte uma posição lógica do Board (line, col) para o slot VISUAL correto.
+     *
+     * O Board lógico é sempre fixo:
+     * 0 = posicionamento do oponente
+     * 1 = ataque do oponente
+     * 2 = ataque do jogador da vez
+     * 3 = posicionamento do jogador da vez
+     *
+     * Mas a UI pode estar em modo normal ou invertido (flippedView),
+     * então este metodo traduz a posição REAL do Board para o local onde
+     * a carta deve ser desenhada visualmente (TOP/BOTTOM e row 0/1).
+     */
+
     private StackPane getVisualSlotForBoardPosition(int line, int col) {
         boolean isTop;
         int visualRow;
@@ -742,7 +737,60 @@ public class GameScreen {
         return findSlot(isTop ? "TOP" : "BOTTOM", visualRow, col);
     }
 
-    // Redesenha TODO o tabuleiro com base no Board REAL
+    /**
+     * Converte um slot VISUAL clicado (TOP/BOTTOM, row 0/1) para a posição REAL do Board (line, col).
+     *
+     * O tabuleiro lógico é sempre fixo (linhas 0–3), mas a interface pode estar em modo normal
+     * ou invertido (flippedView). Esse metodo desfaz essa projeção visual e retorna a posição
+     * verdadeira do Board onde a ação deve ocorrer.
+     *
+     * Essencial para que a UI não contenha regras de jogo: ela apenas traduz o clique visual
+     * para coordenadas lógicas e delega toda a validação/ação para a GameLogic.
+     */
+
+
+    private int[] getBoardPositionFromSlot(StackPane slot) {
+        Integer visualRow = (Integer) slot.getProperties().get("row");
+        Integer col       = (Integer) slot.getProperties().get("col");
+        if (visualRow == null || col == null) {
+            return null;
+        }
+
+        boolean top = isTopSlot(slot.getId());
+        int line;
+
+        if (!flippedView) {
+            // visão normal: (mesma lógica invertida de getVisualSlotForBoardPosition)
+            if (top) {
+                line = (visualRow == 0) ? 0 : 1;   // TOP row 0 -> line 0, TOP row 1 -> line 1
+            } else {
+                line = (visualRow == 0) ? 2 : 3;   // BOTTOM row 0 -> line 2, BOTTOM row 1 -> line 3
+            }
+        } else {
+            // visão invertida
+            if (!top) {
+                // BOTTOM
+                line = (visualRow == 0) ? 1 : 0;   // row 0 -> line 1, row 1 -> line 0
+            } else {
+                // TOP
+                line = (visualRow == 0) ? 3 : 2;   // row 0 -> line 3, row 1 -> line 2
+            }
+        }
+
+        return new int[]{ line, col };
+    }
+
+    //===============REFRESHS
+
+    private void refreshHandsFromGame() {
+        Player current = game.getCurrentPlayer();
+        playerHandP1.getChildren().clear();
+        for (Card card : current.getHand()) {
+            addCardToHandBox(playerHandP1, card);
+        }
+    }
+
+
     private void refreshBoardFromGame() {
         clearAllBoardSlots();
 
