@@ -3,36 +3,62 @@ package events;
 // Ao publicar seria assim: eventBus.publish(EventType.CARD_DRAWN);
 // Tipos de eventos que podem ocorrer no jogo
 public enum EventType {
-    // Eventos de turno
-    TURN_STARTED,
-    TURN_ENDED,
-    PHASE_CHANGED,
+    // ===== EVENTOS DE TURNO =====
+    TURN_STARTED,           // Início do turno
+    TURN_ENDED,             // Fim do turno
+    PHASE_CHANGED,          // Mudança de fase (draw, main, attack, end)
+    TURN_SWITCHED,          // Turno trocado para outro jogador
 
-    // Eventos de cartas
-    CARD_DRAWN,
-    CARD_PLAYED,
-    CARD_MOVED,
-    CARD_SACRIFICED,
-    CARD_DESTROYED,
+    // ===== EVENTOS DE CARTAS =====
+    CARD_DRAWN,             // Carta comprada
+    CARD_PLAYED,            // Carta jogada no tabuleiro
+    CARD_MOVED,             // Carta movida (posicionamento -> ataque)
+    CARD_SACRIFICED,        // Carta sacrificada
+    CARD_DESTROYED,         // Carta destruída (sem gerar ossos extras)
+    CARD_SELECTED,          // Carta selecionada na mão
+    CARD_DESELECTED,        // Carta desselecionada
 
-    // Eventos de combate
-    ATTACK_DECLARED,
-    DAMAGE_DEALT,
-    CREATURE_DAMAGED,
-    CREATURE_DIED,
-    COMBAT_RESOLVED,
+    // ===== EVENTOS DE COMBATE =====
+    ATTACK_PHASE_STARTED,   // Fase de ataque iniciada
+    ATTACK_DECLARED,        // Ataque declarado por uma criatura
+    DAMAGE_DEALT,           // Dano causado
+    CREATURE_DAMAGED,       // Criatura recebeu dano
+    CREATURE_DIED,          // Criatura morreu
+    COMBAT_RESOLVED,        // Combate resolvido
+    DIRECT_DAMAGE,          // Dano direto ao jogador
 
-    // Eventos de recursos
-    BONES_GAINED,
-    BONES_SPENT,
-    LIFE_LOST,
+    // ===== EVENTOS DE RECURSOS =====
+    BONES_GAINED,           // Ossos ganhos
+    BONES_SPENT,            // Ossos gastos
+    LIFE_LOST,              // Vida perdida
+    RESOURCE_CHANGED,       // Recurso alterado (genérico)
 
-    // Eventos de sigilos
-    SIGIL_ACTIVATED,
-    SIGIL_TRIGGERED,
+    // ===== EVENTOS DE SACRIFÍCIO =====
+    SACRIFICE_MODE_STARTED, // Modo de sacrifício iniciado
+    SACRIFICE_MODE_ENDED,   // Modo de sacrifício encerrado
+    SACRIFICE_SELECTED,     // Carta marcada para sacrifício
+    SACRIFICE_CANCELLED,    // Sacrifício cancelado
 
-    // Eventos de jogo
-    PLAYER_ACTION,
-    GAME_STATE_CHANGED,
-    GAME_ENDED
+    // ===== EVENTOS DE SIGILOS =====
+    SIGIL_ACTIVATED,        // Sigilo ativado
+    SIGIL_TRIGGERED,        // Sigilo disparado (efeito executado)
+
+    // ===== EVENTOS DE JOGO =====
+    PLAYER_ACTION,          // Ação genérica do jogador
+    GAME_STATE_CHANGED,     // Estado do jogo mudou
+    GAME_ENDED,             // Jogo terminou
+    GAME_PAUSED,            // Jogo pausado
+    GAME_RESUMED,           // Jogo retomado
+
+    // ===== EVENTOS DE UI =====
+    UI_UPDATE_REQUESTED,    // Solicitação de atualização da UI
+    SLOT_CLICKED,           // Slot do tabuleiro clicado
+    DECK_CLICKED,           // Deck clicado
+    HAND_UPDATED,           // Mão atualizada
+    BOARD_UPDATED,          // Tabuleiro atualizado
+
+    // ===== EVENTOS DE VALIDAÇÃO =====
+    INVALID_ACTION,         // Ação inválida tentada
+    COST_CHECK_FAILED,      // Verificação de custo falhou
+    POSITION_INVALID        // Posição inválida
 }
