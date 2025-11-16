@@ -42,7 +42,7 @@ public class GameLogic {
         printGameState();
     }
 
-    // Compra uma carta do deck
+    // Compra uma carta do deck (método antigo, genérico)
     public boolean drawCard(Player player, Deck deck) {
         if (deck.getRemainingCards() > 0) {
             deck.draw(player.getHand());
@@ -52,7 +52,6 @@ public class GameLogic {
     }
 
     //===========PLACE CARD
-
 
     public enum PlaceCardResult {
         SUCCESS,
@@ -65,9 +64,15 @@ public class GameLogic {
         REQUIRES_SACRIFICE_SELECTION // Novo: Indica à UI que o modo interativo é necessário
     }
 
-
-
-
+    // helper de consulta para a UI saber se dá pra pagar custo de sangue
+    public boolean canPayBloodCostWithCurrentBoard(CreatureCard card) {
+        int bloodCost = card.getBloodCost();
+        if (bloodCost <= 0) {
+            return true;
+        }
+        int available = countSacrificeableCards(currentPlayer);
+        return available >= bloodCost;
+    }
 
 
     // Este método agora lida APENAS com cartas de custo 0 (sangue) ou custo de ossos.
@@ -123,7 +128,6 @@ public class GameLogic {
             return PlaceCardResult.REQUIRES_SACRIFICE_SELECTION;
         }
 
-
         // 5) Paga o custo (apenas ossos, já que bloodCost é 0)
         payCost(currentPlayer, creature, null); // Passa null para sacrifícios
 
@@ -145,7 +149,6 @@ public class GameLogic {
 
         return PlaceCardResult.SUCCESS;
     }
-
 
     // Conta cartas que podem ser sacrificadas (na zona de posicionamento)
     public int countSacrificeableCards(Player player) {
@@ -178,8 +181,6 @@ public class GameLogic {
     public boolean sacrificeCards(Player player, int amount) {
         int line = (player.getOrder() == 1) ? 3 : 0;
         int sacrificed = 0;
-
-
 
         for (int col = 0; col < 4 && sacrificed < amount; col++) {
             if (!board.EmptySpace(line, col)) {
@@ -430,7 +431,6 @@ public class GameLogic {
 
         //muda deck da mao atual
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
-
     }
 
     // Fase de preparação do turno
@@ -480,7 +480,6 @@ public class GameLogic {
         return player.getHand().size() > before;
     }
 
-
     // Compra do deck normal do jogador atual
     public boolean drawFromMainDeckCurrentPlayer() {
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
@@ -492,7 +491,6 @@ public class GameLogic {
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
         return drawFromSquirrelDeck(currentPlayer, currentDeck);
     }
-
 
     // Getters
     public Board getBoard() { return board; }

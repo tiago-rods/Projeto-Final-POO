@@ -271,19 +271,18 @@ public class GameScreen {
         Scene scene = stage.getScene();
         scene.setRoot(root);
 
-// guarda o layout da tela de jogo para voltar depois da WaitingScreen
+        // guarda o layout da tela de jogo para voltar depois da WaitingScreen
         this.gameRoot = root;
 
         updateTurnLabelFromGame();
 
-// Adicionando cartas iniciais à mão do Player 1 ao começar o jogo:
+        // Adicionando cartas iniciais à mão do Player 1 ao começar o jogo:
         for (Card card : game.getPlayer1().getHand()) {
             addCardToHandBox(playerHandP1, card);
         }
 
-// desenha o board INTEIRO com base no Board (vazio no início)
+        // desenha o board INTEIRO com base no Board (vazio no início)
         refreshBoardFromGame();
-
     }
 
     // ==========================================================
@@ -546,14 +545,13 @@ public class GameScreen {
         // É uma criatura com custo de sangue?
         if (card instanceof CreatureCard creature && creature.getBloodCost() > 0) {
 
-            // Verifica se TEM cartas suficientes no tabuleiro
-            int sacrificeable = game.countSacrificeableCards(game.getCurrentPlayer());
-
-            if (sacrificeable < creature.getBloodCost()) {
+            // *** ALTERADO: em vez de calcular aqui, perguntamos à GameLogic
+            if (!game.canPayBloodCostWithCurrentBoard(creature)) {
                 System.out.println("Não há criaturas suficientes no tabuleiro para sacrificar!");
                 // (Opcional: piscar a carta de vermelho)
                 return; // Não inicia o processo
             }
+            // *** FIM ALTERAÇÃO
 
             // 1. Inicia o estado de sacrifício
             System.out.println("Iniciando modo de sacrifício para: " + creature.getName());
@@ -890,29 +888,26 @@ public class GameScreen {
         // Lógica de Compra de Cartas
         deck.setOnMouseClicked(e -> {
 
-            // Se ainda não comprou nesse turno, pegue a carta. (Ao trocar de turno, volta para false
-            if(!game.hasDrawnThisTurn()) {
-                boolean success;
+            // *** ALTERADO: deixar a GameLogic decidir se pode comprar ou não
+            boolean success;
 
-                if (deckType.equals("Esquilos")) {
-                    success = game.drawFromSquirrelDeckCurrentPlayer();
-                } else {
-                    success = game.drawFromMainDeckCurrentPlayer();
-                }
-
-                if (!success) {
-                    System.out.println("❌ Deck " + deckType + " está vazio!");
-                    return;
-                }
-
-                System.out.println(deckType + " clicado! "
-                        + game.getCurrentPlayer().getName() + " comprou uma carta.");
-
-                // Redesenha mão com base no estado REAL
-                refreshHandsFromGame();
+            if ("Esquilos".equals(deckType)) {
+                success = game.drawFromSquirrelDeckCurrentPlayer();
             } else {
-                System.out.println("❌ Já comprou uma carta!");
+                success = game.drawFromMainDeckCurrentPlayer();
             }
+
+            if (!success) {
+                // GameLogic já imprime se foi deck vazio ou já comprou no turno
+                return;
+            }
+
+            System.out.println(deckType + " clicado! "
+                    + game.getCurrentPlayer().getName() + " comprou uma carta.");
+
+            // Redesenha mão com base no estado REAL
+            refreshHandsFromGame();
+            // *** FIM ALTERAÇÃO
 
         });
 
@@ -920,8 +915,6 @@ public class GameScreen {
     }
 
     //=============================================================================
-
-
 
     private void passTurn() {
         System.out.println("Pass turn.");
@@ -953,7 +946,6 @@ public class GameScreen {
 
         // 6) Listeners para voltar ao jogo
         scene.setOnKeyPressed(e -> returnToGame());
-
     }
 
     private void returnToGame() {
@@ -965,8 +957,6 @@ public class GameScreen {
         // volta o root para o layout da GameScreen
         scene.setRoot(gameRoot);
     }
-
-
 
     // ===========================
     // === REFRESH DO TABULEIRO ==
@@ -1019,7 +1009,6 @@ public class GameScreen {
         }
     }
 
-
     /**
      * Converte uma posição lógica do Board (line, col) para o slot VISUAL correto.
      *
@@ -1067,7 +1056,6 @@ public class GameScreen {
      * para coordenadas lógicas e delega toda a validação/ação para a GameLogic.
      */
 
-
     private int[] getBoardPositionFromSlot(StackPane slot) {
         Integer visualRow = (Integer) slot.getProperties().get("row");
         Integer col       = (Integer) slot.getProperties().get("col");
@@ -1108,7 +1096,6 @@ public class GameScreen {
             addCardToHandBox(playerHandP1, card);
         }
     }
-
 
     private void refreshBoardFromGame() {
         clearAllBoardSlots();
