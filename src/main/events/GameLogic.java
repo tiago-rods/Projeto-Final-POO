@@ -325,10 +325,12 @@ public class GameLogic {
 
     // Troca o turno do jogador
     public void switchTurn() {
+        //ataque
+
+        //muda player
         currentPlayer = (currentPlayer == player1) ? player2 : player1;
         System.out.println("\n=== Turno de " + currentPlayer.getName() + " ===");
-
-        // Compra uma carta no início do turno
+        //muda deck da mao atual
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
 
     }
