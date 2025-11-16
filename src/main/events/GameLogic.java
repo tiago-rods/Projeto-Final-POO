@@ -177,29 +177,7 @@ public class GameLogic {
         }
     }
 
-    // Sacrifica cartas para pagar o custo de sangue
-    public boolean sacrificeCards(Player player, int amount) {
-        int line = (player.getOrder() == 1) ? 3 : 0;
-        int sacrificed = 0;
-
-        for (int col = 0; col < 4 && sacrificed < amount; col++) {
-            if (!board.EmptySpace(line, col)) {
-                Card card = board.removeCard(line, col);
-                // Adiciona ossos a cada carta retirada
-                player.getGraveyard().add(card);
-
-                // Adiciona ossos se for uma CreatureCard
-                if (card instanceof CreatureCard) {
-                    player.addBones(1);
-                }
-                sacrificed++;
-            }
-        }
-
-        return sacrificed == amount;
-    }
-
-    // NOVO MÉTODO: Sacrifica uma lista específica de cartas
+    // Sacrifica uma lista específica de cartas
     public void sacrificeCards(Player player, java.util.List<CreatureCard> cardsToSacrifice) {
         for (Card card : cardsToSacrifice) {
             // Remove do tabuleiro
@@ -216,7 +194,7 @@ public class GameLogic {
         System.out.println("Sacrificadas " + cardsToSacrifice.size() + " criaturas.");
     }
 
-    // NOVO MÉTODO: Chamado pela UI após a seleção de sacrifícios
+    // Chamado pela UI após a seleção de sacrifícios
     public PlaceCardResult tryPlaceCardWithSacrifices(
             int handIndex,
             int targetLine,
@@ -302,6 +280,50 @@ public class GameLogic {
         return PlaceCardResult.SUCCESS;
     }
 
+    /**
+     * Executa todas as ações de final de turno para o jogador atual:
+     * 1. Cartas na linha de posicionamento tentam mover para a linha de ataque.
+     * 2. Cartas na linha de ataque (incluindo as que acabaram de mover) atacam.
+     * 3. Cartas mortas são removidas (isso é feito dentro de executeAttackPhase).
+     */
+    public void performEndOfTurnActions(Player attacker) {
+
+        // === 1. FASE DE MOVIMENTO ===
+        // Cartas da linha de posicionamento andam para a de ataque
+        System.out.println("Movendo cartas para a linha de ataque...");
+
+        int positioningLine = (attacker.getOrder() == 1) ? 3 : 0;
+        int attackLine = (attacker.getOrder() == 1) ? 2 : 1;
+
+        for (int col = 0; col < 4; col++) {
+            Card cardToMove = board.getCard(positioningLine, col);
+
+            // Só move se tiver uma carta na pos. e o espaço de atk estiver livre
+            if (cardToMove != null && board.EmptySpace(attackLine, col)) {
+                // O metodo moveCardToAttack chama board.moveToAttack
+                boolean moved = moveCardToAttack(attacker, col);
+                if (moved && cardToMove instanceof CreatureCard) {
+                    System.out.println(cardToMove.getName() + " moveu para a linha de ataque.");
+                }
+            } else if (cardToMove != null) {
+                System.out.println(cardToMove.getName() + " está bloqueado e não pode avançar.");
+            }
+        }
+
+        // Opcional: Imprimir o board após os movimentos para debug
+        System.out.println("Tabuleiro após movimentos:");
+        board.printBoard();
+
+
+        // === 2. FASE DE ATAQUE E LIMPEZA ===
+        // A `executeAttackPhase` existente já faz o loop de ataque
+        // E a limpeza de criaturas mortas.
+        // Ela vai atacar com as cartas que JÁ ESTAVAM na linha de ataque
+        // e também com as que ACABARAM de se mover para lá.
+        System.out.println("Executando ataques...");
+        executeAttackPhase(attacker);
+    }
+
     // Move uma carta da zona de posicionamento para zona de ataque
     public boolean moveCardToAttack(Player player, int column) {
         return board.moveToAttack(column, player.getOrder());
@@ -315,7 +337,7 @@ public class GameLogic {
         for (int col = 0; col < 4; col++) {
             Card attackerCard = board.getCard(attackLine, col);
 
-            if (attackerCard != null && attackerCard instanceof CreatureCard) {
+            if (attackerCard instanceof CreatureCard) {
                 CreatureCard attackingCreature = (CreatureCard) attackerCard;
                 performAttack(attackingCreature, defender, col);
             }
@@ -334,8 +356,26 @@ public class GameLogic {
         boolean hasFlying = attacker.getSigils().stream()
                 .anyMatch(s -> s.getClass().getSimpleName().equals("FlySigil"));
 
-        // Busca carta na linha de ataque oposta
-        Card oppositeAttackCard = board.getOppositeAttackCard(attackerLine, attackerCol);
+        // --- INÍCIO DA CORREÇÃO ---
+        // Vamos calcular as linhas opostas manualmente
+        // P1 ataca da linha 2 -> Oposto de Ataque = 1, Oposto de Defesa = 0
+        // P2 ataca da linha 1 -> Oposto de Ataque = 2, Oposto de Defesa = 3
+
+        int oppositeAttackLine;
+        int oppositeDefenseLine;
+
+        if (attackerLine == 2) { // Atacante é P1
+            oppositeAttackLine = 1;
+            oppositeDefenseLine = 0;
+        } else { // Atacante é P2 (linha 1)
+            oppositeAttackLine = 2;
+            oppositeDefenseLine = 3;
+        }
+
+        // 1. Busca carta na linha de ATAQUE oposta
+        Card oppositeAttackCard = board.getCard(oppositeAttackLine, attackerCol);
+        // --- FIM DA CORREÇÃO ---
+
 
         if (oppositeAttackCard != null && !hasFlying) {
             // Ataque bloqueado - criaturas lutam entre si
@@ -345,7 +385,8 @@ public class GameLogic {
             }
         } else {
             // Ataque direto ao oponente ou carta voa por cima do bloqueador
-            Card oppositeDefenseCard = board.getOppositeDefenseCard(attackerLine, attackerCol);
+            // 2. Busca carta na linha de DEFESA oposta
+            Card oppositeDefenseCard = board.getCard(oppositeDefenseLine, attackerCol);
 
             if (oppositeDefenseCard != null && !hasFlying) {
                 // Ataca a carta de defesa diretamente
@@ -370,12 +411,10 @@ public class GameLogic {
         System.out.println("Combate: " + attacker.getName() + " (" + attacker.getAttack() + "/" + attacker.getHealth() +
                 ") vs " + defender.getName() + " (" + defender.getAttack() + "/" + defender.getHealth() + ")");
 
-        // Ambas as criaturas causam dano uma à outra
-        attacker.takeDamage(defender.getAttack());
+        // Apenas o atacante causa dano ao defensor
         defender.takeDamage(attacker.getAttack());
 
         // Atualiza ícones de vida
-        attacker.changeLifeIcon(Math.max(0, attacker.getHealth()));
         defender.changeLifeIcon(Math.max(0, defender.getHealth()));
 
         System.out.println("Após combate: " + attacker.getName() + " HP: " + attacker.getHealth() +
@@ -419,18 +458,28 @@ public class GameLogic {
         return player1.isAlive() ? player1 : player2;
     }
 
-    // Troca o turno do jogador
-    public void switchTurn() {
-        //ataque
+    /**
+     * MODIFICADO: Este metodo agora APENAS executa as ações de fim de turno
+     * (movimento e ataque) do jogador atual.
+     * Ele NÃO troca mais o jogador.
+     */
+    public void executeEndOfTurn() {
+        System.out.println("\n--- Fase de Ações de " + currentPlayer.getName() + " ---");
+        performEndOfTurnActions(currentPlayer);
+    }
 
+
+    /**
+     * NOVO: Este método finaliza o turno trocando o jogador e resetando
+     * os controles de compra de carta.
+     */
+    public void switchToNextPlayer() {
         //muda player
         currentPlayer = (currentPlayer == player1) ? player2 : player1;
         System.out.println("\n=== Turno de " + currentPlayer.getName() + " ===");
 
         hasDrawnThisTurn = false; // Reseta o controle de compra
 
-        //muda deck da mao atual
-        Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
     }
 
     // Fase de preparação do turno
@@ -441,19 +490,7 @@ public class GameLogic {
         System.out.println("Cartas na mão: " + player.getHand().size());
     }
 
-    // Executar turno completo (simplificado para testes)
-    public void executeTurn() {
-        startTurnPhase(currentPlayer);
 
-        // Aqui você pode adicionar lógica de IA ou esperar input do jogador
-        // Por enquanto, apenas executa a fase de ataque
-
-        executeAttackPhase(currentPlayer);
-
-        if (!isGameOver()) {
-            switchTurn();
-        }
-    }
 
     // enums de draw
     public enum DrawResult {

@@ -1020,19 +1020,40 @@ public class GameScreen {
             cancelSacrificeProcess();
         }
 
-        // 1) LÓGICA DO JOGO
-        game.switchTurn();
+        // Limpa a seleção ANTES do ataque, para não ficar nada destacado
+        clearSelection();
 
-        // 2) Alterna orientação visual
-        flippedView = !flippedView;
+        // === ETAPA 1: EXECUTAR A LÓGICA DE ATAQUE ===
+        // Chamamos o primeiro metodo da GameLogic.
+        game.executeEndOfTurn();
+
+        // === ETAPA 2: ATUALIZAR O TABULEIRO VISUALMENTE ===
+        // Isso é crucial. Redesenhamos a tela para mostrar os resultados
+        // do combate (cartas movidas, dano, mortes).
+        refreshBoardFromGame();
+
+        // === ETAPA 3: CRIAR A PAUSA ===
+        // Crie uma pausa. 1.5 segundos é um bom começo.
+        PauseTransition delay = new PauseTransition(Duration.seconds(1.5));
+
+        // === ETAPA 4: DEFINIR O QUE ACONTECE DEPOIS DA PAUSA ===
+        delay.setOnFinished(event -> {
+
+            // === ETAPA 5: FINALIZAR A TROCA DE TURNO ===
+
+            // 1) Lógica do Jogo (chama o segundo método da GameLogic)
+            game.switchToNextPlayer();
+
+            // 2) Alterna orientação visual
+            flippedView = !flippedView;
 
         // 3) Atualiza UI com base no estado REAL
         updateTurnLabelFromGame();
         refreshHandsFromGame();
-        refreshBoardFromGame();
+            // Atualiza o board de novo para a visão "flipped" do novo jogador
+            refreshBoardFromGame();
         refreshBonesHUD();
         clearSelection();
-
 
         // 4) Cria o layout da WaitingScreen para o PRÓXIMO jogador
         String nextPlayer = game.getCurrentPlayer().getName();
@@ -1043,8 +1064,13 @@ public class GameScreen {
         Scene scene = gameWindow.getScene();
         scene.setRoot(waitingRoot);
 
-        // 6) Listeners para voltar ao jogo
-        scene.setOnKeyPressed(e -> returnToGame());
+            // 6) Listeners para voltar ao jogo
+            scene.setOnKeyPressed(e -> returnToGame());
+        });
+
+        // === ETAPA 6: INICIAR A PAUSA ===
+        // A pausa começa. O código acima (Etapa 5) só roda quando ela terminar.
+        delay.play();
     }
 
     private void returnToGame() {
