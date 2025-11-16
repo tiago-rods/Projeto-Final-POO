@@ -67,6 +67,20 @@ public class GameScreen {
     // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2 embaixo)
     private boolean flippedView = false;
 
+    // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
+    private enum SacrificeState {
+        NORMAL,                // Estado padrão
+        AWAITING_SACRIFICE,    // Selecionou carta da mão, esperando sacrifícios
+        AWAITING_PLACEMENT     // Sacrifícios feitos, esperando local para colocar
+    }
+
+    private SacrificeState currentSacrificeState = SacrificeState.NORMAL;
+    private Card cardToPlayAfterSacrifice = null; // A carta da mão que queremos jogar
+    // Lista de Slots da UI (para feedback visual)
+    private java.util.List<StackPane> sacrificeSlots = new java.util.ArrayList<>();
+    // Lista de Cartas da Lógica (para enviar ao GameLogic)
+    private java.util.List<CreatureCard> sacrificeCards = new java.util.ArrayList<>();
+    // =======================================================
 
     // ===== TELA DE JOGO =====
     public void startGame(Stage stage) {
@@ -522,10 +536,44 @@ public class GameScreen {
 
     // === helpers de seleção ===
     private void selectCard(Card card) {
-        clearSelection();
-        selectedCardNode = card;
-        card.highlight(true);
-        System.out.println("Carta selecionada");
+        // Se já estamos em um processo de sacrifício, cancelar tudo
+        if (currentSacrificeState != SacrificeState.NORMAL) {
+            cancelSacrificeProcess();
+        }
+
+        clearSelection(); // Limpa a seleção visual antiga
+
+        // É uma criatura com custo de sangue?
+        if (card instanceof CreatureCard creature && creature.getBloodCost() > 0) {
+
+            // Verifica se TEM cartas suficientes no tabuleiro
+            int sacrificeable = game.countSacrificeableCards(game.getCurrentPlayer());
+
+            if (sacrificeable < creature.getBloodCost()) {
+                System.out.println("Não há criaturas suficientes no tabuleiro para sacrificar!");
+                // (Opcional: piscar a carta de vermelho)
+                return; // Não inicia o processo
+            }
+
+            // 1. Inicia o estado de sacrifício
+            System.out.println("Iniciando modo de sacrifício para: " + creature.getName());
+            currentSacrificeState = SacrificeState.AWAITING_SACRIFICE;
+            cardToPlayAfterSacrifice = card; // Armazena a carta da mão
+            sacrificeSlots.clear();
+            sacrificeCards.clear();
+
+            // 2. Destaca a carta da mão
+            selectedCardNode = card; // 'selectedCardNode' ainda é útil
+            card.highlight(true);
+
+            // 3. Destacar visualmente as cartas que PODEM ser sacrificadas
+            highlightSacrificeableSlots(true);
+
+        } else {
+            // 4. Custo 0 ou não-criatura: seleção normal
+            selectedCardNode = card;
+            card.highlight(true);
+        }
     }
 
     private void clearSelection() {
@@ -537,43 +585,263 @@ public class GameScreen {
 
     // === posicionar carta no slot ===
     private void dropCard(StackPane slot) {
-        // 1) Precisa ter carta selecionada
-        if (selectedCardNode == null) {
-            return;
-        }
 
-        // 2) Descobre posição lógica no Board
+        switch (currentSacrificeState) {
+            case NORMAL:
+                // Comportamento antigo: tentar colocar carta de custo 0
+                placeCardNormal(slot);
+                break;
+            case AWAITING_SACRIFICE:
+                // Comportamento novo: tentar selecionar slot para sacrificar
+                selectSlotForSacrifice(slot);
+                break;
+            case AWAITING_PLACEMENT:
+                // Comportamento novo: tentar colocar a carta no slot sacrificado
+                placeCardOnSacrificeSlot(slot);
+                break;
+        }
+    }
+
+    // NOVO: Lógica para o estado NORMAL
+    private void placeCardNormal(StackPane slot) {
+        if (selectedCardNode == null) return; // Nada selecionado
+
+        // Pega coords e handIndex
         int[] coords = getBoardPositionFromSlot(slot);
         if (coords == null) {
             System.out.println("Slot sem coordenadas lógicas.");
             return;
         }
-        int line = coords[0];
-        int col  = coords[1];
-
-        Player current = game.getCurrentPlayer();
-
-        // 3) Índice da carta na mão REAL
-        int handIndex = current.getHand().indexOf(selectedCardNode);
+        int handIndex = game.getCurrentPlayer().getHand().indexOf(selectedCardNode);
         if (handIndex == -1) {
             System.out.println("Carta selecionada não está na mão do jogador atual.");
             return;
         }
 
-        // 4) Delega 100% para a lógica
+        // Usa o metodo antigo (modificado)
         GameLogic.PlaceCardResult result =
-                game.tryPlaceCardFromCurrentPlayerHand(handIndex, line, col);
+                game.tryPlaceCardFromCurrentPlayerHand(handIndex, coords[0], coords[1]);
 
-        if (result != GameLogic.PlaceCardResult.SUCCESS) {
+        if (result == GameLogic.PlaceCardResult.SUCCESS) {
+            clearSelection();
+            refreshHandsFromGame();
+            refreshBoardFromGame();
+        } else if (result == GameLogic.PlaceCardResult.REQUIRES_SACRIFICE_SELECTION) {
+            // A UI tentou colocar direto, mas a lógica disse que precisa de sacrifício
+            // Isso acontece se o usuário clicar na mão e depois no tabuleiro (em vez de clicar em outra carta)
+            System.out.println("Iniciando modo de sacrifício via dropCard.");
+            selectCard(selectedCardNode); // Inicia o processo de sacrifício
+        } else {
             System.out.println("Não foi possível colocar a carta: " + result);
-            // aqui depois você pode colocar animações/feedbacks diferentes pra cada motivo
+        }
+    }
+
+    // NOVO: Lógica para o estado AWAITING_SACRIFICE
+    private void selectSlotForSacrifice(StackPane slot) {
+        // 1. Verifica se o slot é válido para sacrifício
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
+
+        // Tem que ser uma criatura, na sua linha, e não pode já ter sido selecionada
+        if (cardOnBoard == null || !(cardOnBoard instanceof CreatureCard creature)) {
+            System.out.println("Slot inválido para sacrifício (vazio ou não criatura).");
+            return;
+        }
+        if (sacrificeCards.contains(creature)) {
+            System.out.println("Criatura já selecionada para sacrifício.");
+            // TODO: Implementar des-seleção (clicar de novo para remover)
             return;
         }
 
-        // 5) UI só reflete o estado REAL
-        clearSelection();
+        // 2. Adiciona à lista de sacrifício
+        sacrificeSlots.add(slot);
+        sacrificeCards.add(creature);
+
+        // 3. Feedback visual (Seta no chão)
+        // Salva a carta original para restauração (em caso de cancelamento)
+        slot.getProperties().put("original_card", cardOnBoard);
+        // Mostra a seta
+        setImagePlaceholder(slot, "/img/arrow.png"); // A "seta no chão"
+        System.out.println("Sacrifício selecionado: " + creature.getName() +
+                ". Total: " + sacrificeCards.size());
+
+        // 4. Verifica se o custo foi atingido
+        CreatureCard cardToPlay = (CreatureCard) cardToPlayAfterSacrifice;
+        if (sacrificeCards.size() == cardToPlay.getBloodCost()) {
+            // Custo atingido! Mudar para modo de posicionamento
+            currentSacrificeState = SacrificeState.AWAITING_PLACEMENT;
+            System.out.println("Custo atingido. Selecione onde colocar a carta.");
+
+            // Para de destacar as sacrificáveis, e destaca as vagas
+            highlightSacrificeableSlots(false);
+            highlightPlacementSlots(true); // Destaca os locais onde pode colocar
+        }
+    }
+
+    // NOVO: Lógica para o estado AWAITING_PLACEMENT
+    private void placeCardOnSacrificeSlot(StackPane slot) {
+
+        // 2. Pega as coordenadas e índice da mão
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        int handIndex = game.getCurrentPlayer().getHand().indexOf(cardToPlayAfterSacrifice);
+        if (handIndex == -1) {
+            System.out.println("Erro: Carta da mão sumiu?");
+            cancelSacrificeProcess();
+            return;
+        }
+
+        // 3. Chama o NOVO método da GameLogic
+        GameLogic.PlaceCardResult result = game.tryPlaceCardWithSacrifices(
+                handIndex,
+                coords[0],
+                coords[1],
+                sacrificeCards
+        );
+
+        if (result == GameLogic.PlaceCardResult.SUCCESS) {
+            System.out.println("Carta colocada com sucesso!");
+        } else {
+            System.out.println("Erro ao tentar colocar com sacrifício: " + result);
+            // Se falhar (ex: clicou num slot ocupado), não cancelamos.
+            // O jogador pode tentar clicar em outro slot.
+            // Para cancelar, ele teria que clicar na mão (cancelSacrificeProcess)
+            return; // Não limpa o estado
+        }
+
+        // 4. Limpa tudo e redesenha, apenas se tiver sucesso
+        highlightPlacementSlots(false);
+        cancelSacrificeProcess(); // Reseta o estado
         refreshHandsFromGame();
         refreshBoardFromGame();
+    }
+
+    // NOVO: Método para cancelar todo o processo
+    private void cancelSacrificeProcess() {
+        System.out.println("Processo de sacrifício cancelado.");
+        if (cardToPlayAfterSacrifice != null) {
+            cardToPlayAfterSacrifice.highlight(false);
+        }
+
+        highlightSacrificeableSlots(false);
+        highlightPlacementSlots(false);
+
+        // Restaura a aparência dos slots de sacrifício
+        for (StackPane slot : sacrificeSlots) {
+            Card card = (Card) slot.getProperties().get("original_card");
+            if (card != null) {
+                slot.getChildren().setAll(card);
+                slot.getProperties().remove("original_card");
+            } else {
+                // Se não tinha carta (bug?), reseta para o placeholder
+                resetSlotToPlaceholder(slot);
+            }
+        }
+
+        currentSacrificeState = SacrificeState.NORMAL;
+        cardToPlayAfterSacrifice = null;
+        sacrificeSlots.clear();
+        sacrificeCards.clear();
+
+        if (selectedCardNode != null) {
+            selectedCardNode.highlight(false);
+            selectedCardNode = null;
+        }
+    }
+
+    // --- NOVOS HELPERS DE DESTAQUE VISUAL ---
+
+    private void highlightSacrificeableSlots(boolean highlight) {
+        // Itera por todos os slots do tabuleiro
+        for (Node n : topGrid.getChildren()) {
+            if (n instanceof StackPane s) toggleSlotHighlight(s, highlight);
+        }
+        for (Node n : bottomGrid.getChildren()) {
+            if (n instanceof StackPane s) toggleSlotHighlight(s, highlight);
+        }
+    }
+
+    private void toggleSlotHighlight(StackPane slot, boolean highlight) {
+        // Apenas slots de posicionamento do jogador atual
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        // Verifica se é a linha de posicionamento do jogador atual
+        Board.SpaceType spaceType = game.getBoard().getSpaceType(coords[0], coords[1]);
+        boolean isCurrentPlayerPos = false;
+        if (game.getCurrentPlayer().getOrder() == 1 && spaceType == Board.SpaceType.PLAYER_1_POSITIONING) {
+            isCurrentPlayerPos = true;
+        } else if (game.getCurrentPlayer().getOrder() == 2 && spaceType == Board.SpaceType.PLAYER_2_POSITIONING) {
+            isCurrentPlayerPos = true;
+        }
+
+        if (isCurrentPlayerPos) {
+            // Verifica se tem carta lá
+            Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
+            if (cardOnBoard != null) {
+                if (highlight) {
+                    // Efeito de "pode sacrificar"
+                    slot.setEffect(new javafx.scene.effect.InnerShadow(20, Color.rgb(247, 78, 17)));
+                } else {
+                    slot.setEffect(null);
+                }
+            }
+        }
+    }
+
+    private void highlightPlacementSlots(boolean highlight) {
+        // Destaca TODOS os slots de posicionamento válidos (Verde)
+        // Válido = Vazio OU um dos que será sacrificado
+
+        // Itera por todos os slots do tabuleiro
+        for (Node n : topGrid.getChildren()) {
+            if (n instanceof StackPane s) togglePlacementHighlight(s, highlight);
+        }
+        for (Node n : bottomGrid.getChildren()) {
+            if (n instanceof StackPane s) togglePlacementHighlight(s, highlight);
+        }
+    }
+
+    private void togglePlacementHighlight(StackPane slot, boolean highlight) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        // 1. Deve ser um slot de posicionamento do jogador atual
+        Board.SpaceType spaceType = game.getBoard().getSpaceType(coords[0], coords[1]);
+        boolean isCurrentPlayerPos = false;
+        if (game.getCurrentPlayer().getOrder() == 1 && spaceType == Board.SpaceType.PLAYER_1_POSITIONING) {
+            isCurrentPlayerPos = true;
+        } else if (game.getCurrentPlayer().getOrder() == 2 && spaceType == Board.SpaceType.PLAYER_2_POSITIONING) {
+            isCurrentPlayerPos = true;
+        }
+
+        if (!isCurrentPlayerPos) return; // Ignora se não for
+
+        // 2. O slot deve estar VAZIO ou ser um dos SACRIFICADOS
+        Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
+        boolean isSacrificeSlot = sacrificeSlots.contains(slot); // Verifica se está na lista de UI
+
+        // É válido se: (está vazio) OU (está na lista de sacrifício)
+        if (cardOnBoard == null || isSacrificeSlot) {
+            if (highlight) {
+                // Efeito de "pode colocar"
+                slot.setEffect(new javafx.scene.effect.InnerShadow(20, Color.rgb(255, 197, 176)));
+            } else {
+                slot.setEffect(null);
+            }
+        } else {
+            // É um slot de posicionamento, mas está ocupado por
+            // uma carta que NÃO foi sacrificada.
+            if (highlight) {
+                // Opcional: Efeito "inválido" (Vermelho)
+                slot.setEffect(new javafx.scene.effect.InnerShadow(10, Color.DARKRED));
+            } else {
+                slot.setEffect(null);
+            }
+        }
     }
 
     private Card pickCardFromEventTarget(Object target) {
@@ -619,25 +887,33 @@ public class GameScreen {
             deck.setEffect(null);
         });
 
+        // Lógica de Compra de Cartas
         deck.setOnMouseClicked(e -> {
-            boolean success;
 
-            if (deckType.equals("Esquilos")) {
-                success = game.drawFromSquirrelDeckCurrentPlayer();
+            // Se ainda não comprou nesse turno, pegue a carta. (Ao trocar de turno, volta para false
+            if(!game.hasDrawnThisTurn()) {
+                boolean success;
+
+                if (deckType.equals("Esquilos")) {
+                    success = game.drawFromSquirrelDeckCurrentPlayer();
+                } else {
+                    success = game.drawFromMainDeckCurrentPlayer();
+                }
+
+                if (!success) {
+                    System.out.println("❌ Deck " + deckType + " está vazio!");
+                    return;
+                }
+
+                System.out.println(deckType + " clicado! "
+                        + game.getCurrentPlayer().getName() + " comprou uma carta.");
+
+                // Redesenha mão com base no estado REAL
+                refreshHandsFromGame();
             } else {
-                success = game.drawFromMainDeckCurrentPlayer();
+                System.out.println("❌ Já comprou uma carta!");
             }
 
-            if (!success) {
-                System.out.println("Deck " + deckType + " está vazio!");
-                return;
-            }
-
-            System.out.println(deckType + " clicado! "
-                    + game.getCurrentPlayer().getName() + " comprou uma carta.");
-
-            // Redesenha mão com base no estado REAL
-            refreshHandsFromGame();
         });
 
         return deck;
@@ -649,6 +925,10 @@ public class GameScreen {
 
     private void passTurn() {
         System.out.println("Pass turn.");
+
+        if (currentSacrificeState != SacrificeState.NORMAL) {
+            cancelSacrificeProcess();
+        }
 
         // 1) LÓGICA DO JOGO
         game.switchTurn();
