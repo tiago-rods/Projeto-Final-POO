@@ -455,42 +455,47 @@ public class GameLogic {
         }
     }
 
-    // Compra do deck "normal" (criaturas, etc.)
-    public boolean drawFromMainDeck(Player player, Deck deck) {
-        if (hasDrawnThisTurn) {
-            System.out.println("Você já comprou uma carta neste turno!");
-            return false;
-        }
-        int before = player.getHand().size();
-        deck.draw(player.getHand());      // já existe esse método
-        hasDrawnThisTurn = true;
-        return player.getHand().size() > before;
+    // enums de draw
+    public enum DrawResult {
+        SUCCESS,
+        ALREADY_DREW_THIS_TURN,
+        DECK_EMPTY
     }
 
-    // Compra do deck de Esquilos
-    public boolean drawFromSquirrelDeck(Player player, Deck deck) {
-        if (hasDrawnThisTurn) {
-            System.out.println("Você já comprou uma carta neste turno!");
-            return false;
-        }
 
-        int before = player.getHand().size();
-        deck.drawSquirrel(player.getHand());  // já existe esse método
-        hasDrawnThisTurn = true;
-        return player.getHand().size() > before;
-    }
-
-    // Compra do deck normal do jogador atual
-    public boolean drawFromMainDeckCurrentPlayer() {
+    public GameLogic.DrawResult drawFromMainDeckCurrentPlayer() {
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
-        return drawFromMainDeck(currentPlayer, currentDeck);
+
+        if (hasDrawnThisTurn)
+            return DrawResult.ALREADY_DREW_THIS_TURN; // já comprou
+
+        if (currentDeck.getRemainingCards() <= 0)
+            return DrawResult.DECK_EMPTY; // deck zerado
+
+        int before = currentPlayer.getHand().size();
+        currentDeck.draw(currentPlayer.getHand()); // compra
+        hasDrawnThisTurn = true;
+
+        return (currentPlayer.getHand().size() > before)
+                ? DrawResult.SUCCESS
+                : DrawResult.DECK_EMPTY; // fallback
     }
 
-    // Compra do deck de esquilos do jogador atual
-    public boolean drawFromSquirrelDeckCurrentPlayer() {
+    public GameLogic.DrawResult drawFromSquirrelDeckCurrentPlayer() {
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
-        return drawFromSquirrelDeck(currentPlayer, currentDeck);
+
+        if (hasDrawnThisTurn)
+            return DrawResult.ALREADY_DREW_THIS_TURN;
+
+        int before = currentPlayer.getHand().size();
+        currentDeck.drawSquirrel(currentPlayer.getHand()); // compra esquilo
+        hasDrawnThisTurn = true;
+
+        return (currentPlayer.getHand().size() > before)
+                ? DrawResult.SUCCESS
+                : DrawResult.DECK_EMPTY;
     }
+
 
     // Getters
     public Board getBoard() { return board; }

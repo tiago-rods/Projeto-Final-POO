@@ -2,6 +2,7 @@ package cards;
 
 import events.EventBus;
 import events.GameLogic;
+import javafx.animation.FadeTransition;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.effect.DropShadow;
@@ -30,6 +31,8 @@ import javafx.animation.ScaleTransition;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
+import javafx.animation.PauseTransition;
+
 
 public class GameScreen {
 
@@ -63,6 +66,15 @@ public class GameScreen {
     // grids do topo e do fundo (antes eram locais)
     private GridPane topGrid;
     private GridPane bottomGrid;
+
+    // mensagem temporária para o jogador
+    private Label messageLabel;
+    // timer para esconder mensagem depois de alguns segundos
+    private javafx.animation.PauseTransition messageHideTimer;
+
+    // HUD de ossos
+    private HBox bonesHUD;
+    private Label bonesValueLabel;
 
     // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2 embaixo)
     private boolean flippedView = false;
@@ -188,7 +200,34 @@ public class GameScreen {
         // indicador de turno
         turnLabel = new Label();
         turnLabel.setTextFill(Color.BEIGE);
-        turnLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 20));
+        turnLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 25));
+
+        //label de mensagem de ajuda ===
+        messageLabel = new Label();
+        messageLabel.setTextFill(Color.web("#ffdd88"));
+        messageLabel.setFont(Font.font("Consolas", 14));
+        messageLabel.setWrapText(true);
+        messageLabel.setVisible(false); // começa escondido
+
+
+        // === HUD de ossos ===
+        Image bonesImg = new Image(
+                getClass().getResource("/img/bones.png").toExternalForm()
+        );
+
+        ImageView bonesIcon = new ImageView(bonesImg);
+        bonesIcon.setFitWidth(35);
+        bonesIcon.setFitHeight(35);
+        bonesIcon.setPreserveRatio(true);
+
+        bonesValueLabel = new Label("0");
+        bonesValueLabel.setTextFill(Color.BEIGE);
+        bonesValueLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 30));
+
+        bonesHUD = new HBox(6);  // espaço entre imagem e número
+        bonesHUD.setAlignment(Pos.CENTER_LEFT);
+        bonesHUD.getChildren().addAll(bonesIcon, bonesValueLabel);
+
 
         // --- MONTAGEM FINAL DO PAINEL ESQUERDO ---
         leftPanel.getChildren().addAll(
@@ -196,9 +235,12 @@ public class GameScreen {
                 scaleValues,
                 scaleBar,
                 turnLabel,
+                bonesHUD,
+                messageLabel,
                 spacer,
                 bellButton
         );
+
 
         // ====== TABULEIRO (80%)  ======
         VBox boardArea = new VBox();
@@ -280,6 +322,9 @@ public class GameScreen {
         for (Card card : game.getPlayer1().getHand()) {
             addCardToHandBox(playerHandP1, card);
         }
+
+
+        refreshBonesHUD(); // para já aparecer o número de ossos inicial
 
         // desenha o board INTEIRO com base no Board (vazio no início)
         refreshBoardFromGame();
@@ -407,6 +452,48 @@ public class GameScreen {
 
         slot.getChildren().setAll(iv);
     }
+
+    //=== mensagens de ajuda
+    private void showMessage(String text) {
+        if (text == null || text.isEmpty()) return;
+
+        messageLabel.setText(text);
+        messageLabel.setOpacity(1);      // começa visível
+        messageLabel.setVisible(true);
+
+        // para Timer anterior se existir
+        if (messageHideTimer != null)
+            messageHideTimer.stop();
+
+        // espera 3s antes do fade
+        messageHideTimer = new PauseTransition(Duration.seconds(2));
+        messageHideTimer.setOnFinished(e -> {
+
+            // anima fade-out
+            FadeTransition fade = new FadeTransition(Duration.seconds(0.7), messageLabel);
+            fade.setFromValue(1.0);
+            fade.setToValue(0.0);
+            fade.setOnFinished(ev -> {
+                messageLabel.setVisible(false);
+                messageLabel.setText("");
+            });
+            fade.play();
+        });
+
+        messageHideTimer.play();
+    }
+
+
+    //Pega a quantidade de ossos e imprime
+    //hud ossos=================
+    private void refreshBonesHUD() {
+        Player current = game.getCurrentPlayer();
+
+        bonesValueLabel.setText(String.valueOf(current.getBones()));
+    }
+
+
+
 
     // === helpers para saber se é TOP ou BOTTOM ===
     private boolean isTopSlot(String slotId) {
@@ -624,6 +711,7 @@ public class GameScreen {
             clearSelection();
             refreshHandsFromGame();
             refreshBoardFromGame();
+            refreshBonesHUD();
         } else if (result == GameLogic.PlaceCardResult.REQUIRES_SACRIFICE_SELECTION) {
             // A UI tentou colocar direto, mas a lógica disse que precisa de sacrifício
             // Isso acontece se o usuário clicar na mão e depois no tabuleiro (em vez de clicar em outra carta)
@@ -715,6 +803,7 @@ public class GameScreen {
         cancelSacrificeProcess(); // Reseta o estado
         refreshHandsFromGame();
         refreshBoardFromGame();
+        refreshBonesHUD();
     }
 
     // NOVO: Método para cancelar todo o processo
@@ -886,30 +975,38 @@ public class GameScreen {
         });
 
         // Lógica de Compra de Cartas
+        // Clique no deck → tenta comprar carta → UI mostra mensagem conforme o resultado
         deck.setOnMouseClicked(e -> {
 
-            // *** ALTERADO: deixar a GameLogic decidir se pode comprar ou não
-            boolean success;
+            GameLogic.DrawResult result; // guarda o motivo da compra
 
+            // decide qual deck está sendo clicado
             if ("Esquilos".equals(deckType)) {
-                success = game.drawFromSquirrelDeckCurrentPlayer();
+                result = game.drawFromSquirrelDeckCurrentPlayer(); // tenta comprar esquilo
             } else {
-                success = game.drawFromMainDeckCurrentPlayer();
+                result = game.drawFromMainDeckCurrentPlayer();     // tenta comprar carta normal
             }
 
-            if (!success) {
-                // GameLogic já imprime se foi deck vazio ou já comprou no turno
-                return;
+            // interpreta o resultado e atualiza UI
+            switch (result) {
+
+                case SUCCESS -> {
+                    // compra ok → atualiza mão
+                    refreshHandsFromGame();
+                }
+
+                case ALREADY_DREW_THIS_TURN -> {
+                    // já comprou no turno → mensagem por 3s
+                    showMessage("Você só pode comprar uma carta por turno.");
+                }
+
+                case DECK_EMPTY -> {
+                    // deck acabou → mensagem
+                    showMessage("Este deck está vazio.");
+                }
             }
-
-            System.out.println(deckType + " clicado! "
-                    + game.getCurrentPlayer().getName() + " comprou uma carta.");
-
-            // Redesenha mão com base no estado REAL
-            refreshHandsFromGame();
-            // *** FIM ALTERAÇÃO
-
         });
+
 
         return deck;
     }
@@ -933,7 +1030,9 @@ public class GameScreen {
         updateTurnLabelFromGame();
         refreshHandsFromGame();
         refreshBoardFromGame();
+        refreshBonesHUD();
         clearSelection();
+
 
         // 4) Cria o layout da WaitingScreen para o PRÓXIMO jogador
         String nextPlayer = game.getCurrentPlayer().getName();
