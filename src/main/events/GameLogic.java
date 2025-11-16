@@ -458,23 +458,26 @@ public class GameLogic {
         return player1.isAlive() ? player1 : player2;
     }
 
-    // Troca o turno do jogador
-    public void switchTurn() {
-
-        // --- NOVA LÓGICA DE ATAQUE ---
-        // O jogador ATUAL (que está terminando o turno) realiza suas ações.
+    /**
+     * MODIFICADO: Este metodo agora APENAS executa as ações de fim de turno
+     * (movimento e ataque) do jogador atual.
+     * Ele NÃO troca mais o jogador.
+     */
+    public void executeEndOfTurn() {
         System.out.println("\n--- Fase de Ações de " + currentPlayer.getName() + " ---");
         performEndOfTurnActions(currentPlayer);
-        // -----------------------------
+    }
 
+    /**
+     * NOVO: Este método finaliza o turno trocando o jogador e resetando
+     * os controles de compra de carta.
+     */
+    public void switchToNextPlayer() {
         //muda player
         currentPlayer = (currentPlayer == player1) ? player2 : player1;
         System.out.println("\n=== Turno de " + currentPlayer.getName() + " ===");
 
         hasDrawnThisTurn = false; // Reseta o controle de compra
-
-        //muda deck da mao atual
-        Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
     }
 
     // Fase de preparação do turno
@@ -483,20 +486,6 @@ public class GameLogic {
         System.out.println("Vidas: " + player.getLives());
         System.out.println("Ossos: " + player.getBones());
         System.out.println("Cartas na mão: " + player.getHand().size());
-    }
-
-    // Executar turno completo (simplificado para testes)
-    public void executeTurn() {
-        startTurnPhase(currentPlayer);
-
-        // Aqui você pode adicionar lógica de IA ou esperar input do jogador
-        // Por enquanto, apenas executa a fase de ataque
-
-        executeAttackPhase(currentPlayer);
-
-        if (!isGameOver()) {
-            switchTurn();
-        }
     }
 
     // Compra do deck "normal" (criaturas, etc.)
