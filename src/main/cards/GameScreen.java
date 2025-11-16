@@ -2,6 +2,8 @@ package cards;
 
 import events.EventBus;
 import events.GameLogic;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.Cursor;
 import javafx.scene.image.Image;
@@ -30,6 +32,9 @@ import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
 
 public class GameScreen {
+
+    private Stage gameWindow;
+    private Parent gameRoot;
 
     // Passando o game para ca, a gnt tem controle de todos as informações da partida
     private final GameLogic game;
@@ -62,8 +67,12 @@ public class GameScreen {
     // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2 embaixo)
     private boolean flippedView = false;
 
+
     // ===== TELA DE JOGO =====
     public void startGame(Stage stage) {
+
+        this.gameWindow = stage;         // guarda a janela do jogo
+
         // ---------------------------------------------------------------------
         // LAYOUT GERAL:
         // [ esquerda (20%) | TABULEIRO (80%) ]
@@ -245,17 +254,22 @@ public class GameScreen {
         root.prefHeightProperty().bind(stage.heightProperty());
 
         // ===== TROCA DE CONTEÚDO DA CENA =====
-        stage.getScene().setRoot(root);
+        Scene scene = stage.getScene();
+        scene.setRoot(root);
+
+// guarda o layout da tela de jogo para voltar depois da WaitingScreen
+        this.gameRoot = root;
 
         updateTurnLabelFromGame();
 
-        // Adicionando cartas iniciais à mão do Player 1 ao começar o jogo:
+// Adicionando cartas iniciais à mão do Player 1 ao começar o jogo:
         for (Card card : game.getPlayer1().getHand()) {
             addCardToHandBox(playerHandP1, card);
         }
 
-        // desenha o board INTEIRO com base no Board (vazio no início)
+// desenha o board INTEIRO com base no Board (vazio no início)
         refreshBoardFromGame();
+
     }
 
     // ==========================================================
@@ -647,7 +661,32 @@ public class GameScreen {
         refreshHandsFromGame();
         refreshBoardFromGame();
         clearSelection();
+
+        // 4) Cria o layout da WaitingScreen para o PRÓXIMO jogador
+        String nextPlayer = game.getCurrentPlayer().getName();
+        WaitingScreen waiting = new WaitingScreen();
+        Parent waitingRoot = waiting.createRoot(nextPlayer);
+
+        // 5) Troca só o root da MESMA Scene (não mexe na janela)
+        Scene scene = gameWindow.getScene();
+        scene.setRoot(waitingRoot);
+
+        // 6) Listeners para voltar ao jogo
+        scene.setOnKeyPressed(e -> returnToGame());
+
     }
+
+    private void returnToGame() {
+        Scene scene = gameWindow.getScene();
+
+        // limpa os listeners pra não ficar acumulando
+        scene.setOnKeyPressed(null);
+
+        // volta o root para o layout da GameScreen
+        scene.setRoot(gameRoot);
+    }
+
+
 
     // ===========================
     // === REFRESH DO TABULEIRO ==
