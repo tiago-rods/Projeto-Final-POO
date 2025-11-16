@@ -59,9 +59,11 @@ public class Deck {
         // Teste de Sigils.FlySigil
         CreatureCard raven1 = new CreatureCard("raven1", "raven", 2, 3, 2, 0, "/img/regular/raven.png");
         raven1.addSigil(fly);
+        deck.add(raven1);
 
         CreatureCard sparrow1 = new CreatureCard("sparrow1", "sparrow", 1, 2, 1, 0, "/img/regular/sparrow.png");
         sparrow1.addSigil(fly);
+        deck.add(sparrow1);
     }
 
     // Initialize squirrelDeck
