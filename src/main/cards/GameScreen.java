@@ -172,10 +172,7 @@ public class GameScreen {
 
 
         // === BALANÇA VERTICAL NO MEIO DO PAINEL ESQUERDO ===
-        Label scoreTitle = new Label("SCALE");
-        scoreTitle.setTextFill(Color.BEIGE);
-        scoreTitle.setFont(Font.font("Consolas", FontWeight.BOLD, 25));
-        scoreTitle.setAlignment(Pos.CENTER);
+
 
         scaleContainer = new StackPane();
         scaleContainer.setMinWidth(80);
@@ -187,8 +184,9 @@ public class GameScreen {
         scaleContainer.setStyle(
                 "-fx-background-color: transparent; " +
                         "-fx-border-color: #3a2d2d; " +
-                        "-fx-border-width: 1; " +
-                        "-fx-border-radius: 8;"
+                        "-fx-border-width: 3; " +
+                        "-fx-border-radius: 3;" +
+                        "-fx-padding: 4"
         );
 
         scaleLine = new Line();
@@ -248,8 +246,8 @@ public class GameScreen {
 
 
         VBox scaleBox = new VBox(6);
-        scaleBox.setAlignment(Pos.CENTER);
-        scaleBox.getChildren().addAll(scoreTitle, scaleContainer);
+        scaleBox.setAlignment(Pos.CENTER_RIGHT);
+        scaleBox.getChildren().addAll(scaleContainer);
 
         // label de mensagem de ajuda
         messageLabel = new Label();
