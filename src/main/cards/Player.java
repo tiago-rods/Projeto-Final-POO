@@ -9,7 +9,7 @@ import java.util.List;
 public class Player {
     private final String name;
     private final int order; // define se é jogador 1 ou 2
-    private int lives = 3; // cada jogador começa com 3 vidas
+    private int lives = 2; // cada jogador começa com 3 vidas
     private int bones = 0; // quantidade de ossos que o jogador possui
 
     private final Deque<Card> deck = new ArrayDeque<>(); // baralho do jogador

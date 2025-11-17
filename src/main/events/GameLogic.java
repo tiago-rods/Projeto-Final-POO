@@ -5,6 +5,7 @@ import cards.Card;
 import cards.Deck;
 import cards.Player;
 import cards.CreatureCard;
+import cards.Scale; // NOVO IMPORT
 
 public class GameLogic {
     private Board board;
@@ -13,6 +14,14 @@ public class GameLogic {
     private Player currentPlayer;
     private Deck deckP1;
     private Deck deckP2;
+
+    // ANTES: private int gameScale = 0;
+    // AGORA: balança separada, classe em cards
+    private Scale scale = new Scale();
+    // 0 = Neutro
+    // +5 = Player 1 vence
+    // -5 = Player 2 vence
+
 
     // Controle de compra de carta por turno
     private boolean hasDrawnThisTurn = false;
@@ -24,6 +33,10 @@ public class GameLogic {
         this.deckP1 = deckP1;
         this.deckP2 = deckP2;
         this.currentPlayer = player1; // Player 1 começa
+
+        // ANTES: this.gameScale = 0;
+        // AGORA: já começa em 0 dentro de GameScale
+        this.scale.reset();
     }
 
     // Inicializa a mão do jogador com cartas do deck
@@ -316,10 +329,6 @@ public class GameLogic {
 
 
         // === 2. FASE DE ATAQUE E LIMPEZA ===
-        // A `executeAttackPhase` existente já faz o loop de ataque
-        // E a limpeza de criaturas mortas.
-        // Ela vai atacar com as cartas que JÁ ESTAVAM na linha de ataque
-        // e também com as que ACABARAM de se mover para lá.
         System.out.println("Executando ataques...");
         executeAttackPhase(attacker);
     }
@@ -339,7 +348,10 @@ public class GameLogic {
 
             if (attackerCard instanceof CreatureCard) {
                 CreatureCard attackingCreature = (CreatureCard) attackerCard;
-                performAttack(attackingCreature, defender, col);
+
+                // ANTES: performAttack(attackingCreature, defender, col);
+                // AGORA: passamos também o Player atacante para atualizar a balança
+                performAttack(attackingCreature, attacker, defender, col);
             }
         }
 
@@ -348,7 +360,9 @@ public class GameLogic {
     }
 
     // Realiza o ataque de uma criatura específica
-    private void performAttack(CreatureCard attacker, Player defender, int column) {
+    // ANTES: private void performAttack(CreatureCard attacker, Player defender, int column)
+    // AGORA: também recebe o Player atacante
+    private void performAttack(CreatureCard attacker, Player attackerPlayer, Player defender, int column) {
         int attackerLine = attacker.getPosLine();
         int attackerCol = attacker.getPosCol();
 
@@ -396,12 +410,14 @@ public class GameLogic {
                     defenseCreature.changeLifeIcon(Math.max(0, defenseCreature.getHealth()));
                 }
             } else {
-                // Dano direto ao jogador
+
+                // Dano direto ao jogador (vai só para a balança)
                 int damage = attacker.getAttack();
-                for (int i = 0; i < damage; i++) {
-                    defender.loseLife();
-                }
-                System.out.println(defender.getName() + " levou " + damage + " de dano! Vidas restantes: " + defender.getLives());
+                System.out.println(defender.getName() + " levou " + damage + " de dano direto na balança!");
+
+                // Agora o dano mexe APENAS na balança
+                updateGameScale(attackerPlayer, damage);
+
             }
         }
     }
@@ -447,16 +463,28 @@ public class GameLogic {
 
     // Verifica se o jogo acabou
     public boolean isGameOver() {
+        // considera as vidas dos jogadores
         return !player1.isAlive() || !player2.isAlive();
     }
+
 
     // Retorna o vencedor do jogo
     public Player getWinner() {
         if (!isGameOver()) {
             return null;
         }
-        return player1.isAlive() ? player1 : player2;
+
+        // Quem ainda estiver vivo é o vencedor
+        if (player1.isAlive() && !player2.isAlive()) {
+            return player1;
+        } else if (player2.isAlive() && !player1.isAlive()) {
+            return player2;
+        }
+
+        // Empate esquisito: os dois morreram ao mesmo tempo
+        return null;
     }
+
 
     /**
      * MODIFICADO: Este metodo agora APENAS executa as ações de fim de turno
@@ -481,6 +509,33 @@ public class GameLogic {
         hasDrawnThisTurn = false; // Reseta o controle de compra
 
     }
+
+    /**
+     * Atualiza a balança do jogo quando um jogador leva dano direto.
+     * Se a balança chegar a +5 ou -5, o jogador oposto perde 1 vida
+     * e a balança é resetada para 0.
+     */
+    private void updateGameScale(Player attacker, int damage) {
+        // Atualiza a balança normalmente
+        scale.applyDirectDamage(attacker, damage);
+
+        // Se a balança está pendendo para o lado do Player 1 (+5),
+        // quem perde vida é o Player 2.
+        if (scale.reachedPlayer1Win()) {
+            player2.loseLife();
+            System.out.println("⚠ " + player2.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player2.getLives());
+            scale.reset(); // volta para 0
+        }
+
+        // Se a balança está pendendo para o lado do Player 2 (-5),
+        // quem perde vida é o Player 1.
+        if (scale.reachedPlayer2Win()) {
+            player1.loseLife();
+            System.out.println("⚠ " + player1.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player1.getLives());
+            scale.reset(); // volta para 0
+        }
+    }
+
 
     // Fase de preparação do turno
     public void startTurnPhase(Player player) {
@@ -543,10 +598,17 @@ public class GameLogic {
     public Deck getDeckP2() { return deckP2; }
     public boolean hasDrawnThisTurn() { return hasDrawnThisTurn; }
 
+    // ANTES: retornava o int direto
+    // public int getGameScale(){ return gameScale; }
+
+    // AGORA: expõe o valor da balança (UI continua enxergando um int)
+    public int getGameScale(){ return scale.getValue(); }
+
     // Metodo auxiliar para debug
     public void printGameState() {
         System.out.println("\n========== ESTADO DO JOGO ==========");
         System.out.println("Turno atual: " + currentPlayer.getName());
+        System.out.println("Balança: " + scale.getValue());
         System.out.println("\nPlayer 1 (" + player1.getName() + "):");
         System.out.println("  Vidas: " + player1.getLives());
         System.out.println("  Ossos: " + player1.getBones());
