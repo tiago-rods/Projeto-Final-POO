@@ -2,6 +2,9 @@ package cards;
 
 import events.EventBus;
 import events.GameLogic;
+import javafx.animation.FadeTransition;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.Cursor;
 import javafx.scene.image.Image;
@@ -16,9 +19,9 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
+import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
@@ -28,8 +31,12 @@ import javafx.animation.ScaleTransition;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
+import javafx.animation.PauseTransition;
 
 public class GameScreen {
+
+    private Stage gameWindow;
+    private Parent gameRoot;
 
     // Passando o game para ca, a gnt tem controle de todos as informações da partida
     private final GameLogic game;
@@ -37,19 +44,19 @@ public class GameScreen {
 
     // ==== CONSTRUTOR ====
     public GameScreen(GameLogic game, EventBus eventBus) {
-        this.game  = game;
+        this.game = game;
         this.eventBus = eventBus;
     }
 
     //====== medidas padrao
-    private static final double CARD_WIDTH = 100;   // largura padrão da carta
-    private static final double CARD_HEIGHT = 150;   // altura padrão da carta
+    private static final double CARD_WIDTH = 100; // largura padrão da carta
+    private static final double CARD_HEIGHT = 150; // altura padrão da carta
 
     // ====== controle de seleção
     private Card selectedCardNode = null;
 
     // ======= configs da mao
-    private static final double HAND_SPACING = 5;           // espaçamento “natural” entre cartas
+    private static final double HAND_SPACING = 5; // espaçamento “natural” entre cartas
     private HBox playerHandP1;
 
     // label de turno
@@ -59,16 +66,57 @@ public class GameScreen {
     private GridPane topGrid;
     private GridPane bottomGrid;
 
+    // mensagem temporária para o jogador
+    private Label messageLabel;
+
+    // timer para esconder mensagem depois de alguns segundos
+    private javafx.animation.PauseTransition messageHideTimer;
+
+    // HUD de velas (vidas)
+    private HBox livesHUD;
+    private Label livesValueLabel;
+
+
+    // HUD de ossos
+    private HBox bonesHUD;
+    private Label bonesValueLabel;
+
+    // HUD da balança vertical
+    private StackPane scaleContainer;
+    private Line scaleLine;
+    private Circle scaleMarker;
+
+    // botão de passar turno
+    private Button bellButton;
+    // trava para evitar múltiplos cliques de turno
+    private boolean isPassingTurn = false;
+
     // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2 embaixo)
     private boolean flippedView = false;
 
+    // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
+    private enum SacrificeState {
+        NORMAL,              // Estado padrão
+        AWAITING_SACRIFICE,  // Selecionou carta da mão, esperando sacrifícios
+        AWAITING_PLACEMENT   // Sacrifícios feitos, esperando local para colocar
+    }
+
+    private SacrificeState currentSacrificeState = SacrificeState.NORMAL;
+    private Card cardToPlayAfterSacrifice = null; // A carta da mão que queremos jogar
+
+    // Lista de Slots da UI (para feedback visual)
+    private java.util.List<StackPane> sacrificeSlots = new java.util.ArrayList<>();
+    // Lista de Cartas da Lógica (para enviar ao GameLogic)
+    private java.util.List<CreatureCard> sacrificeCards = new java.util.ArrayList<>();
+
+    // =======================================================
     // ===== TELA DE JOGO =====
     public void startGame(Stage stage) {
+        this.gameWindow = stage; // guarda a janela do jogo
+
         // ---------------------------------------------------------------------
         // LAYOUT GERAL:
         // [ esquerda (20%) | TABULEIRO (80%) ]
-        // - Esquerda: balança/placar + botão do sino
-        // - Centro: tabuleiro dividido em cima (TOP) e baixo (BOTTOM)
         // ---------------------------------------------------------------------
         HBox root = new HBox();
         root.setStyle("-fx-background-color: #1f1b1b;");
@@ -77,107 +125,189 @@ public class GameScreen {
         VBox leftPanel = new VBox();
         leftPanel.setPadding(new Insets(16));
         leftPanel.setSpacing(12);
-        leftPanel.setStyle("-fx-background-color: #241d1d; -fx-border-color: #3a2d2d; -fx-border-width: 0 2 0 0;");
+        leftPanel.setStyle(
+                "-fx-background-color: #241d1d; " +
+                        "-fx-border-color: #3a2d2d; " +
+                        "-fx-border-width: 0 2 0 0;"
+        );
 
-        // ---- BALANÇA/PLACAR (TOPO) ----
-        Label scoreTitle = new Label("SCALE");
-        scoreTitle.setTextFill(Color.BEIGE);
-        scoreTitle.setFont(Font.font("Consolas", FontWeight.BOLD, 20));
+        // indicador de turno
+        turnLabel = new Label();
+        turnLabel.setTextFill(Color.BEIGE);
+        turnLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 25));
 
-        // --- ESCALA RESPONSIVA ---
-        GridPane scaleValues = new GridPane();
-        scaleValues.setHgap(0);
-        scaleValues.setVgap(0);
-        scaleValues.setAlignment(Pos.CENTER);
+        // === HUD de ossos ===
+        Image bonesImg = new Image(
+                getClass().getResource("/img/icons/bone.png").toExternalForm()
+        );
+        ImageView bonesIcon = new ImageView(bonesImg);
+        bonesIcon.setFitWidth(35);
+        bonesIcon.setFitHeight(35);
+        bonesIcon.setPreserveRatio(true);
 
-        // 11 colunas com largura percentual igual (5 4 3 2 1 0 1 2 3 4 5)
-        for (int c = 0; c < 11; c++) {
-            ColumnConstraints cc = new ColumnConstraints();
-            cc.setPercentWidth(100.0 / 11.0);
-            scaleValues.getColumnConstraints().add(cc);
-        }
+        bonesValueLabel = new Label("0");
+        bonesValueLabel.setTextFill(Color.BEIGE);
+        bonesValueLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 30));
 
-        // cria labels e adiciona
-        for (int i = -5; i <= 5; i++) {
-            Label lbl = new Label(String.valueOf(Math.abs(i)));
+        bonesHUD = new HBox(6); // espaço entre imagem e número
+        bonesHUD.setAlignment(Pos.CENTER_LEFT);
+        bonesHUD.getChildren().addAll(bonesIcon, bonesValueLabel);
+
+        // === HUD de velas (vidas) ===
+        Image candlesImg = new Image(
+                getClass().getResource("/img/icons/candle.png").toExternalForm()
+        );
+        ImageView candlesIcon = new ImageView(candlesImg);
+        candlesIcon.setFitWidth(35);
+        candlesIcon.setFitHeight(35);
+        candlesIcon.setPreserveRatio(true);
+
+        livesValueLabel = new Label("0");
+        livesValueLabel.setTextFill(Color.BEIGE);
+        livesValueLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 30));
+
+        livesHUD = new HBox(6); // espaço entre imagem e número
+        livesHUD.setAlignment(Pos.CENTER_LEFT);
+        livesHUD.getChildren().addAll(candlesIcon, livesValueLabel);
+
+
+        // === BALANÇA VERTICAL NO MEIO DO PAINEL ESQUERDO ===
+
+
+        scaleContainer = new StackPane();
+        scaleContainer.setMinWidth(80);
+        scaleContainer.setPrefWidth(80);
+        scaleContainer.setMaxWidth(80);
+        scaleContainer.setMinHeight(250);
+        scaleContainer.setPrefHeight(250);
+        scaleContainer.setMaxHeight(250);
+        scaleContainer.setStyle(
+                "-fx-background-color: transparent; " +
+                        "-fx-border-color: #3a2d2d; " +
+                        "-fx-border-width: 3; " +
+                        "-fx-border-radius: 3;" +
+                        "-fx-padding: 4"
+        );
+
+        scaleLine = new Line();
+        scaleLine.setStroke(Color.DARKGOLDENROD);
+        scaleLine.setStrokeWidth(4);
+
+        scaleMarker = new Circle(10, Color.BEIGE);
+        scaleMarker.setStroke(Color.web("#2b2222"));
+        scaleMarker.setStrokeWidth(2);
+
+        // === DIVISÕES VISUAIS DA BALANÇA (DE +5 A -5) ===
+        VBox ticksBox = new VBox();
+        ticksBox.setFillWidth(true);
+        ticksBox.setSpacing(0);
+        ticksBox.setAlignment(Pos.CENTER_LEFT);
+
+        int minScale = -5;
+        int maxScale = 5;
+
+// Cria 11 linhas: 5,4,3,2,1,0,1,2,3,4,5
+        for (int v = maxScale; v >= minScale; v--) {
+            HBox row = new HBox(4);
+            row.setAlignment(Pos.CENTER_LEFT);
+
+            // número (mostra valor absoluto como no Inscryption)
+            Label lbl = new Label(String.valueOf(Math.abs(v)));
             lbl.setTextFill(Color.LIGHTGRAY);
-            lbl.setFont(Font.font("Consolas", 14));
-            lbl.setAlignment(Pos.CENTER);
-            lbl.setMaxWidth(Double.MAX_VALUE);
-            GridPane.setHgrow(lbl, Priority.ALWAYS);
-            scaleValues.add(lbl, i + 5, 0); //O que sera colocado, linha, coluna
+            lbl.setFont(Font.font("Consolas", 11));
+
+            // risquinho
+            Line tick = new Line(0, 0, 12, 0);
+            tick.setStroke(Color.GRAY);
+            tick.setStrokeWidth(v == 0 ? 2.5 : 1.2); // linha central mais forte
+
+            row.getChildren().addAll(lbl, tick);
+            VBox.setVgrow(row, Priority.ALWAYS);
+            ticksBox.getChildren().add(row);
         }
 
-        // --- LINHAS E MARCADOR ---
-        StackPane scaleBar = new StackPane();
-        scaleBar.setMinHeight(40);
-        scaleBar.setPrefHeight(40);
-        scaleBar.setStyle("-fx-background-color: transparent;");
 
-        Line line = new Line();
-        line.setStartX(0);
-        line.setStartY(0);
-        line.setEndX(300);
-        line.setEndY(0);
-        line.setStroke(Color.DARKGOLDENROD);
-        line.setStrokeWidth(3);
-
-        Line marker = new Line();
-        marker.setStartX(0);
-        marker.setStartY(-12);
-        marker.setEndX(0);
-        marker.setEndY(12);
-        marker.setStroke(Color.BEIGE);
-        marker.setStrokeWidth(3);
-
-        scaleBar.widthProperty().addListener((obs, oldW, newW) -> {
-            line.setEndX(newW.doubleValue() - 8); // margem direita
+        // Ajusta o tamanho da barra vertical conforme o container
+        scaleContainer.heightProperty().addListener((obs, oldH, newH) -> {
+            double h = newH.doubleValue() - 40; // padding top/bottom
+            if (h < 0) h = 0;
+            scaleLine.setStartX(0);
+            scaleLine.setStartY(-h / 2);
+            scaleLine.setEndX(0);
+            scaleLine.setEndY(h / 2);
+            refreshScaleFromGame(); // reposiciona o marcador quando a altura muda
         });
 
-        scaleBar.getChildren().addAll(line, marker);
-        StackPane.setAlignment(line, Pos.CENTER);
-        StackPane.setAlignment(marker, Pos.CENTER);
+        scaleContainer.getChildren().addAll(ticksBox, scaleLine, scaleMarker);
 
-        // --- ESPAÇADOR + BOTÃO ---
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
+        StackPane.setAlignment(ticksBox, Pos.CENTER_LEFT); // ticks encostados à esquerda
+        StackPane.setAlignment(scaleLine, Pos.CENTER);
+        StackPane.setAlignment(scaleMarker, Pos.CENTER);
 
-        Button bellButton = new Button("Pass turn");
+
+        VBox scaleBox = new VBox(6);
+        scaleBox.setAlignment(Pos.CENTER_RIGHT);
+        scaleBox.getChildren().addAll(scaleContainer);
+
+        // label de mensagem de ajuda
+        messageLabel = new Label();
+        messageLabel.setTextFill(Color.web("#ffdd88"));
+        messageLabel.setFont(Font.font("Consolas", 14));
+        messageLabel.setWrapText(true);
+        messageLabel.setVisible(false); // começa escondido
+
+        // --- ESPAÇADORES ---
+        Region spacerTop = new Region();
+        Region spacerBottom = new Region();
+        VBox.setVgrow(spacerTop, Priority.ALWAYS);
+        VBox.setVgrow(spacerBottom, Priority.ALWAYS);
+
+        // botão de passar turno
+        bellButton = new Button("Pass turn");
         bellButton.setMaxWidth(Double.MAX_VALUE);
         bellButton.setStyle(
-                "-fx-background-color: #4b2e2e; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; " +
-                        "-fx-background-radius: 8; -fx-padding: 10 14; -fx-font-size: 20;"
+                "-fx-background-color: #4b2e2e; " +
+                        "-fx-text-fill: #f0e6d2; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-background-radius: 8; " +
+                        "-fx-padding: 10 14; " +
+                        "-fx-font-size: 20;"
         );
-        // Hover
         bellButton.setOnMouseEntered(e -> bellButton.setStyle(
-                "-fx-background-color: #4b2020; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; " +
-                        "-fx-background-radius: 8; -fx-padding: 10 14; -fx-font-size: 20;"
+                "-fx-background-color: #4b2020; " +
+                        "-fx-text-fill: #f0e6d2; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-background-radius: 8; " +
+                        "-fx-padding: 10 14; " +
+                        "-fx-font-size: 20;"
         ));
         bellButton.setOnMouseExited(e -> bellButton.setStyle(
-                "-fx-background-color: #4b2e2e; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; " +
-                        "-fx-background-radius: 8; -fx-padding: 10 14; -fx-font-size: 20;"
+                "-fx-background-color: #4b2e2e; " +
+                        "-fx-text-fill: #f0e6d2; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-background-radius: 8; " +
+                        "-fx-padding: 10 14; " +
+                        "-fx-font-size: 20;"
         ));
         bellButton.setOnMouseClicked(e -> {
             System.out.println("Sino clicado.");
             passTurn();
         });
 
-        // indicador de turno
-        turnLabel = new Label();
-        turnLabel.setTextFill(Color.BEIGE);
-        turnLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 20));
-
         // --- MONTAGEM FINAL DO PAINEL ESQUERDO ---
         leftPanel.getChildren().addAll(
-                scoreTitle,
-                scaleValues,
-                scaleBar,
                 turnLabel,
-                spacer,
+                livesHUD,
+                bonesHUD,
+                spacerTop,
+                scaleBox,
+                spacerBottom,
+                messageLabel,
                 bellButton
         );
 
-        // ====== TABULEIRO (80%)  ======
+
+        // ====== TABULEIRO (80%) ======
         VBox boardArea = new VBox();
         boardArea.setPadding(new Insets(10));
         boardArea.setSpacing(10);
@@ -190,12 +320,14 @@ public class GameScreen {
         boardArea.setAlignment(Pos.TOP_CENTER);
 
         // Grids agora são "TOP" (cima) e "BOTTOM" (baixo)
-        topGrid = createPlayerGrid("TOP");        // topo
+        topGrid = createPlayerGrid("TOP"); // topo
+
         StackPane centerDivider = new StackPane();
         centerDivider.setMinHeight(4);
         centerDivider.setMaxHeight(4);
         centerDivider.setStyle("-fx-background-color: #3a2d2d; -fx-background-radius: 4;");
-        bottomGrid = createPlayerGrid("BOTTOM");  // baixo
+
+        bottomGrid = createPlayerGrid("BOTTOM"); // baixo
 
         playerHandP1 = createPlayerHand("HAND-P1");
         playerHandP1.setAlignment(Pos.CENTER);
@@ -203,7 +335,7 @@ public class GameScreen {
         // ====== ÁREA DE DECKS (CANTO DIREITO INFERIOR) ======
         HBox deckArea = new HBox(30); // espaçamento entre os montes
         deckArea.setAlignment(Pos.BOTTOM_RIGHT);
-        deckArea.setPadding(new Insets(0, 30, 15, 0)); // afastar da borda
+        deckArea.setPadding(new Insets(0, 30, 15, 0));
         deckArea.setPickOnBounds(false);
 
         // Monte de Criaturas
@@ -233,19 +365,21 @@ public class GameScreen {
         // ====== COMPOSIÇÃO E PROPORÇÕES ======
         root.getChildren().addAll(leftPanel, boardArea);
 
-        // ~20% (esquerda - painel) / ~80% (tabuleiro)
         root.widthProperty().addListener((obs, oldW, newW) -> {
             double total = newW.doubleValue();
             leftPanel.setPrefWidth(total * 0.20);
             boardArea.setPrefWidth(total * 0.80);
         });
 
-        // Altura acompanha o Stage
         root.prefWidthProperty().bind(stage.widthProperty());
         root.prefHeightProperty().bind(stage.heightProperty());
 
         // ===== TROCA DE CONTEÚDO DA CENA =====
-        stage.getScene().setRoot(root);
+        Scene scene = stage.getScene();
+        scene.setRoot(root);
+
+        // guarda o layout da tela de jogo para voltar depois da WaitingScreen
+        this.gameRoot = root;
 
         updateTurnLabelFromGame();
 
@@ -254,13 +388,38 @@ public class GameScreen {
             addCardToHandBox(playerHandP1, card);
         }
 
-        // desenha o board INTEIRO com base no Board (vazio no início)
+        refreshBonesHUD();
+        refreshLivesHUD();
         refreshBoardFromGame();
+        refreshScaleFromGame(); // balança já começa coerente com o estado do jogo
     }
 
     // ==========================================================
-    // === MÉTODOS AUXILIARES    ===
+    // === MÉTODOS AUXILIARES ===
     // ==========================================================
+
+    /** Atualiza a posição visual da balança vertical com base no gameScale e flippedView. */
+    private void refreshScaleFromGame() {
+        if (scaleContainer == null || scaleMarker == null) return;
+
+        int scaleValue = game.getGameScale(); // -5 .. +5
+        int min = -5;
+        int max = 5;
+        int range = max - min; // 10
+
+        double totalHeight = scaleContainer.getHeight() - 40; // padding top/bottom
+        if (totalHeight <= 0) return;
+
+        // Inverte visualmente quando a câmera está flipada
+        int visualValue = flippedView ? -scaleValue : scaleValue;
+
+        double step = totalHeight / range; // altura entre cada "ponto"
+        double offset = visualValue * step;
+
+        // Sistema de coordenadas JavaFX: Y positivo é para baixo.
+        // visualValue > 0 -> desce; visualValue < 0 -> sobe.
+        scaleMarker.setTranslateY(-offset);
+    }
 
     /**
      * Cria um grid 2 linhas x 4 colunas (8 slots) para uma faixa do tabuleiro.
@@ -282,22 +441,19 @@ public class GameScreen {
                 } else { // BOTTOM
                     imagePath = (r == 0) ? "/img/paw.png" : "/img/arrow.png";
                 }
-
                 StackPane slot = createPlaceholder(prefix + "-" + id, imagePath);
                 slot.getProperties().put("row", r);
                 slot.getProperties().put("col", c);
-
                 GridPane.setValignment(slot, VPos.CENTER);
                 grid.add(slot, c, r);
                 id++;
             }
         }
+
         return grid;
     }
 
-    /**
-     * Cria um slot para carta (placeholder).
-     */
+    /** Cria um slot para carta (placeholder). */
     private StackPane createPlaceholder(String id, String imagePath) {
         StackPane slot = new StackPane();
         slot.setId(id);
@@ -346,24 +502,22 @@ public class GameScreen {
                 getClass().getResource(resourcePath).toExternalForm(),
                 false
         );
-
         ImageView iv = new ImageView(img);
         iv.setPreserveRatio(true);
         iv.setSmooth(true);
         iv.setCache(true);
-
         iv.fitWidthProperty().unbind();
         iv.fitHeightProperty().unbind();
 
         String id = slot.getId();
-
         if (resourcePath.contains("arrow")) {
             int inset = 25;
             StackPane.setMargin(iv, new Insets(inset));
             iv.fitWidthProperty().bind(slot.widthProperty().subtract(inset * 2));
             iv.fitHeightProperty().bind(slot.heightProperty().subtract(inset * 2));
             iv.setOpacity(0.4);
-            if (isTopSlot(id)) { // topo fica "de cabeça para baixo"
+            if (isTopSlot(id)) {
+                // topo fica "de cabeça para baixo"
                 iv.setRotate(180);
             }
         } else if (resourcePath.contains("paw")) {
@@ -381,6 +535,47 @@ public class GameScreen {
         slot.getChildren().setAll(iv);
     }
 
+    //=== mensagens de ajuda
+    private void showMessage(String text) {
+        if (text == null || text.isEmpty()) return;
+
+        messageLabel.setText(text);
+        messageLabel.setOpacity(1);
+        messageLabel.setVisible(true);
+
+        // para Timer anterior se existir
+        if (messageHideTimer != null) messageHideTimer.stop();
+
+        // espera 2s antes do fade
+        messageHideTimer = new PauseTransition(Duration.seconds(2));
+        messageHideTimer.setOnFinished(e -> {
+            // anima fade-out
+            FadeTransition fade = new FadeTransition(Duration.seconds(0.7), messageLabel);
+            fade.setFromValue(1.0);
+            fade.setToValue(0.0);
+            fade.setOnFinished(ev -> {
+                messageLabel.setVisible(false);
+                messageLabel.setText("");
+            });
+            fade.play();
+        });
+        messageHideTimer.play();
+    }
+
+
+    //hud velas=================
+    private void refreshLivesHUD() {
+        Player current = game.getCurrentPlayer();
+        livesValueLabel.setText(String.valueOf(current.getLives()));
+    }
+
+
+    //hud ossos=================
+    private void refreshBonesHUD() {
+        Player current = game.getCurrentPlayer();
+        bonesValueLabel.setText(String.valueOf(current.getBones()));
+    }
+
     // === helpers para saber se é TOP ou BOTTOM ===
     private boolean isTopSlot(String slotId) {
         return slotId.startsWith("TOP");
@@ -393,9 +588,7 @@ public class GameScreen {
     private boolean isPositioningSlot(StackPane slot) {
         Integer row = (Integer) slot.getProperties().get("row");
         if (row == null) return false;
-
         String id = slot.getId();
-
         if (isBottomSlot(id)) {
             // BOTTOM: r=1 (seta) é posicionamento
             return row == 1;
@@ -408,9 +601,7 @@ public class GameScreen {
     private boolean isAttackSlot(StackPane slot) {
         Integer row = (Integer) slot.getProperties().get("row");
         if (row == null) return false;
-
         String id = slot.getId();
-
         if (isBottomSlot(id)) {
             // BOTTOM: r=0 (pata) é ataque
             return row == 0;
@@ -423,7 +614,6 @@ public class GameScreen {
     //============================================
     //Mao do jogador
     //============================================
-
     private void addCardToHandBox(HBox handBox, Card card) {
         if (handBox.getChildren().size() >= 7) {
             System.out.println("Limite máximo de 7 cartas atingido.");
@@ -434,7 +624,6 @@ public class GameScreen {
 
     private HBox createPlayerHand(String prefix) {
         HBox hand = new HBox();
-
         hand.setSpacing(HAND_SPACING);
         hand.setAlignment(Pos.CENTER_LEFT);
         hand.setId(prefix);
@@ -443,7 +632,6 @@ public class GameScreen {
         hand.setMinWidth(fixedWidth);
         hand.setPrefWidth(fixedWidth);
         hand.setMaxWidth(fixedWidth);
-
         hand.setMinHeight(CARD_HEIGHT);
         hand.setPrefHeight(CARD_HEIGHT);
         hand.setMaxHeight(CARD_HEIGHT);
@@ -500,18 +688,46 @@ public class GameScreen {
     }
 
     //==========================HELPERS
-
     private void updateTurnLabelFromGame() {
         Player current = game.getCurrentPlayer();
-        turnLabel.setText("Turn: " + current.getName());
+        turnLabel.setText(current.getName().toUpperCase());
     }
 
     // === helpers de seleção ===
     private void selectCard(Card card) {
-        clearSelection();
-        selectedCardNode = card;
-        card.highlight(true);
-        System.out.println("Carta selecionada");
+        // Se já estamos em um processo de sacrifício, cancelar tudo
+        if (currentSacrificeState != SacrificeState.NORMAL) {
+            cancelSacrificeProcess();
+        }
+
+        clearSelection(); // Limpa a seleção visual antiga
+
+        // É uma criatura com custo de sangue?
+        if (card instanceof CreatureCard creature && creature.getBloodCost() > 0) {
+            // pergunta pra GameLogic se tem sacrifício suficiente
+            if (!game.canPayBloodCostWithCurrentBoard(creature)) {
+                System.out.println("Não há criaturas suficientes no tabuleiro para sacrificar!");
+                return;
+            }
+
+            // 1. Inicia o estado de sacrifício
+            System.out.println("Iniciando modo de sacrifício para: " + creature.getName());
+            currentSacrificeState = SacrificeState.AWAITING_SACRIFICE;
+            cardToPlayAfterSacrifice = card; // Armazena a carta da mão
+            sacrificeSlots.clear();
+            sacrificeCards.clear();
+
+            // 2. Destaca a carta da mão
+            selectedCardNode = card;
+            card.highlight(true);
+
+            // 3. Destacar visualmente as cartas que PODEM ser sacrificadas
+            highlightSacrificeableSlots(true);
+        } else {
+            // custo 0 ou não-criatura: seleção normal
+            selectedCardNode = card;
+            card.highlight(true);
+        }
     }
 
     private void clearSelection() {
@@ -523,48 +739,240 @@ public class GameScreen {
 
     // === posicionar carta no slot ===
     private void dropCard(StackPane slot) {
-        // 1) Precisa ter carta selecionada
-        if (selectedCardNode == null) {
-            return;
+        switch (currentSacrificeState) {
+            case NORMAL -> // Comportamento antigo: tentar colocar carta de custo 0
+                    placeCardNormal(slot);
+            case AWAITING_SACRIFICE -> // selecionar slot para sacrificar
+                    selectSlotForSacrifice(slot);
+            case AWAITING_PLACEMENT -> // colocar a carta no slot após sacrifícios
+                    placeCardOnSacrificeSlot(slot);
         }
+    }
 
-        // 2) Descobre posição lógica no Board
+    // NOVO: Lógica para o estado NORMAL
+    private void placeCardNormal(StackPane slot) {
+        if (selectedCardNode == null) return; // Nada selecionado
+
+        // Pega coords e handIndex
         int[] coords = getBoardPositionFromSlot(slot);
         if (coords == null) {
             System.out.println("Slot sem coordenadas lógicas.");
             return;
         }
-        int line = coords[0];
-        int col  = coords[1];
 
-        Player current = game.getCurrentPlayer();
-
-        // 3) Índice da carta na mão REAL
-        int handIndex = current.getHand().indexOf(selectedCardNode);
+        int handIndex = game.getCurrentPlayer().getHand().indexOf(selectedCardNode);
         if (handIndex == -1) {
             System.out.println("Carta selecionada não está na mão do jogador atual.");
             return;
         }
 
-        // 4) Delega 100% para a lógica
-        GameLogic.PlaceCardResult result =
-                game.tryPlaceCardFromCurrentPlayerHand(handIndex, line, col);
+        // Usa o metodo da GameLogic
+        GameLogic.PlaceCardResult result = game.tryPlaceCardFromCurrentPlayerHand(
+                handIndex, coords[0], coords[1]
+        );
 
-        if (result != GameLogic.PlaceCardResult.SUCCESS) {
+        if (result == GameLogic.PlaceCardResult.SUCCESS) {
+            clearSelection();
+            refreshHandsFromGame();
+            refreshBoardFromGame();
+            refreshBonesHUD();
+        } else if (result == GameLogic.PlaceCardResult.REQUIRES_SACRIFICE_SELECTION) {
+            // UI tentou colocar direto, mas requer sacrifício
+            System.out.println("Iniciando modo de sacrifício via dropCard.");
+            selectCard(selectedCardNode); // Inicia o processo de sacrifício
+        } else {
             System.out.println("Não foi possível colocar a carta: " + result);
-            // aqui depois você pode colocar animações/feedbacks diferentes pra cada motivo
+        }
+    }
+
+    // NOVO: Lógica para o estado AWAITING_SACRIFICE
+    private void selectSlotForSacrifice(StackPane slot) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
+        if (cardOnBoard == null || !(cardOnBoard instanceof CreatureCard creature)) {
+            System.out.println("Slot inválido para sacrifício (vazio ou não criatura).");
+            return;
+        }
+        if (sacrificeCards.contains(creature)) {
+            System.out.println("Criatura já selecionada para sacrifício.");
             return;
         }
 
-        // 5) UI só reflete o estado REAL
-        clearSelection();
+        // 2. Adiciona à lista de sacrifício
+        sacrificeSlots.add(slot);
+        sacrificeCards.add(creature);
+
+        // 3. Feedback visual (seta no chão)
+        slot.getProperties().put("original_card", cardOnBoard);
+        setImagePlaceholder(slot, "/img/arrow.png");
+
+        System.out.println("Sacrifício selecionado: " + creature.getName() +
+                ". Total: " + sacrificeCards.size());
+
+        CreatureCard cardToPlay = (CreatureCard) cardToPlayAfterSacrifice;
+        if (sacrificeCards.size() == cardToPlay.getBloodCost()) {
+            // custo atingido -> modo de posicionamento
+            currentSacrificeState = SacrificeState.AWAITING_PLACEMENT;
+            System.out.println("Custo atingido. Selecione onde colocar a carta.");
+
+            highlightSacrificeableSlots(false);
+            highlightPlacementSlots(true);
+        }
+    }
+
+    // NOVO: Lógica para o estado AWAITING_PLACEMENT
+    private void placeCardOnSacrificeSlot(StackPane slot) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        int handIndex = game.getCurrentPlayer().getHand().indexOf(cardToPlayAfterSacrifice);
+        if (handIndex == -1) {
+            System.out.println("Erro: Carta da mão sumiu?");
+            cancelSacrificeProcess();
+            return;
+        }
+
+        GameLogic.PlaceCardResult result = game.tryPlaceCardWithSacrifices(
+                handIndex,
+                coords[0],
+                coords[1],
+                sacrificeCards
+        );
+
+        if (result != GameLogic.PlaceCardResult.SUCCESS) {
+            System.out.println("Erro ao tentar colocar com sacrifício: " + result);
+            // jogador ainda pode clicar em outro slot
+            return;
+        }
+
+        // 4. Limpa tudo e redesenha, apenas se tiver sucesso
+        highlightPlacementSlots(false);
+        cancelSacrificeProcess();
         refreshHandsFromGame();
         refreshBoardFromGame();
+        refreshBonesHUD();
+    }
+
+    // NOVO: Método para cancelar todo o processo
+    private void cancelSacrificeProcess() {
+        System.out.println("Processo de sacrifício cancelado.");
+
+        if (cardToPlayAfterSacrifice != null) {
+            cardToPlayAfterSacrifice.highlight(false);
+        }
+
+        highlightSacrificeableSlots(false);
+        highlightPlacementSlots(false);
+
+        // Restaura a aparência dos slots de sacrifício
+        for (StackPane slot : sacrificeSlots) {
+            Card card = (Card) slot.getProperties().get("original_card");
+            if (card != null) {
+                slot.getChildren().setAll(card);
+                slot.getProperties().remove("original_card");
+            } else {
+                resetSlotToPlaceholder(slot);
+            }
+        }
+
+        currentSacrificeState = SacrificeState.NORMAL;
+        cardToPlayAfterSacrifice = null;
+        sacrificeSlots.clear();
+        sacrificeCards.clear();
+
+        if (selectedCardNode != null) {
+            selectedCardNode.highlight(false);
+            selectedCardNode = null;
+        }
+    }
+
+    // --- HELPERS DE DESTAQUE VISUAL ---
+    private void highlightSacrificeableSlots(boolean highlight) {
+        for (Node n : topGrid.getChildren()) {
+            if (n instanceof StackPane s) toggleSlotHighlight(s, highlight);
+        }
+        for (Node n : bottomGrid.getChildren()) {
+            if (n instanceof StackPane s) toggleSlotHighlight(s, highlight);
+        }
+    }
+
+    private void toggleSlotHighlight(StackPane slot, boolean highlight) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        Board.SpaceType spaceType = game.getBoard().getSpaceType(coords[0], coords[1]);
+        boolean isCurrentPlayerPos = false;
+
+        if (game.getCurrentPlayer().getOrder() == 1 &&
+                spaceType == Board.SpaceType.PLAYER_1_POSITIONING) {
+            isCurrentPlayerPos = true;
+        } else if (game.getCurrentPlayer().getOrder() == 2 &&
+                spaceType == Board.SpaceType.PLAYER_2_POSITIONING) {
+            isCurrentPlayerPos = true;
+        }
+
+        if (isCurrentPlayerPos) {
+            Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
+            if (cardOnBoard != null) {
+                if (highlight) {
+                    slot.setEffect(new javafx.scene.effect.InnerShadow(20,
+                            Color.rgb(247, 78, 17)));
+                } else {
+                    slot.setEffect(null);
+                }
+            }
+        }
+    }
+
+    private void highlightPlacementSlots(boolean highlight) {
+        for (Node n : topGrid.getChildren()) {
+            if (n instanceof StackPane s) togglePlacementHighlight(s, highlight);
+        }
+        for (Node n : bottomGrid.getChildren()) {
+            if (n instanceof StackPane s) togglePlacementHighlight(s, highlight);
+        }
+    }
+
+    private void togglePlacementHighlight(StackPane slot, boolean highlight) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null) return;
+
+        Board.SpaceType spaceType = game.getBoard().getSpaceType(coords[0], coords[1]);
+        boolean isCurrentPlayerPos = false;
+
+        if (game.getCurrentPlayer().getOrder() == 1 &&
+                spaceType == Board.SpaceType.PLAYER_1_POSITIONING) {
+            isCurrentPlayerPos = true;
+        } else if (game.getCurrentPlayer().getOrder() == 2 &&
+                spaceType == Board.SpaceType.PLAYER_2_POSITIONING) {
+            isCurrentPlayerPos = true;
+        }
+
+        if (!isCurrentPlayerPos) return;
+
+        Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
+        boolean isSacrificeSlot = sacrificeSlots.contains(slot);
+
+        if (cardOnBoard == null || isSacrificeSlot) {
+            if (highlight) {
+                slot.setEffect(new javafx.scene.effect.InnerShadow(20,
+                        Color.rgb(255, 197, 176)));
+            } else {
+                slot.setEffect(null);
+            }
+        } else {
+            if (highlight) {
+                slot.setEffect(new javafx.scene.effect.InnerShadow(10, Color.DARKRED));
+            } else {
+                slot.setEffect(null);
+            }
+        }
     }
 
     private Card pickCardFromEventTarget(Object target) {
         if (!(target instanceof Node n)) return null;
-
         while (n != null && !(n instanceof Card)) {
             n = n.getParent();
         }
@@ -575,7 +983,7 @@ public class GameScreen {
     private StackPane createDeckPlaceholder(String id, String imagePath, String deckType) {
         StackPane deck = new StackPane();
         deck.setId(id);
-        deck.setMaxHeight(CARD_HEIGHT*1.2);
+        deck.setMaxHeight(CARD_HEIGHT * 1.2);
         deck.setMaxWidth(CARD_WIDTH);
         deck.setPrefSize(CARD_WIDTH, CARD_HEIGHT);
         deck.setAlignment(Pos.CENTER);
@@ -596,67 +1004,114 @@ public class GameScreen {
             deck.setScaleX(1.08);
             deck.setScaleY(1.08);
             deck.setCursor(Cursor.HAND);
-            deck.setEffect(new DropShadow(20, Color.rgb(220,180,180,0.5)));
+            deck.setEffect(new DropShadow(20, Color.rgb(220, 180, 180, 0.5)));
         });
-
         deck.setOnMouseExited(e -> {
             deck.setScaleX(1);
             deck.setScaleY(1);
             deck.setEffect(null);
         });
 
+        // Lógica de Compra de Cartas
         deck.setOnMouseClicked(e -> {
-            boolean success;
-
-            if (deckType.equals("Esquilos")) {
-                success = game.drawFromSquirrelDeckCurrentPlayer();
+            GameLogic.DrawResult result;
+            if ("Esquilos".equals(deckType)) {
+                result = game.drawFromSquirrelDeckCurrentPlayer();
             } else {
-                success = game.drawFromMainDeckCurrentPlayer();
+                result = game.drawFromMainDeckCurrentPlayer();
             }
 
-            if (!success) {
-                System.out.println("Deck " + deckType + " está vazio!");
-                return;
+            switch (result) {
+                case SUCCESS -> refreshHandsFromGame();
+                case ALREADY_DREW_THIS_TURN -> showMessage("Você só pode comprar uma carta por turno.");
+                case DECK_EMPTY -> showMessage("Este deck está vazio.");
             }
-
-            System.out.println(deckType + " clicado! "
-                    + game.getCurrentPlayer().getName() + " comprou uma carta.");
-
-            // Redesenha mão com base no estado REAL
-            refreshHandsFromGame();
         });
 
         return deck;
     }
 
     //=============================================================================
-
-
-
     private void passTurn() {
         System.out.println("Pass turn.");
 
-        // 1) LÓGICA DO JOGO
-        game.switchTurn();
+        // *** TRAVA contra cliques múltiplos ***
+        if (isPassingTurn) {
+            return; // ignora clique se já estiver processando o turno
+        }
+        isPassingTurn = true;
+        if (bellButton != null) {
+            bellButton.setDisable(true);
+        }
 
-        // 2) Alterna orientação visual
-        flippedView = !flippedView;
+        if (currentSacrificeState != SacrificeState.NORMAL) {
+            cancelSacrificeProcess();
+        }
 
-        // 3) Atualiza UI com base no estado REAL
-        updateTurnLabelFromGame();
-        refreshHandsFromGame();
-        refreshBoardFromGame();
         clearSelection();
+
+        // === ETAPA 1: EXECUTAR A LÓGICA DE ATAQUE ===
+        game.executeEndOfTurn();
+
+        // === ETAPA 2: ATUALIZAR O TABULEIRO VISUALMENTE ===
+        refreshBoardFromGame();
+        refreshScaleFromGame(); // balança reflete o dano antes do flip
+
+        // === ETAPA 3: CRIAR A PAUSA ===
+        PauseTransition delay = new PauseTransition(Duration.seconds(1.5));
+
+        // === ETAPA 4: DEFINIR O QUE ACONTECE DEPOIS DA PAUSA ===
+        delay.setOnFinished(event -> {
+            // === ETAPA 5: FINALIZAR A TROCA DE TURNO ===
+            game.switchToNextPlayer();
+
+            // 2) Alterna orientação visual
+            flippedView = !flippedView;
+
+            // 3) Atualiza UI com base no estado REAL
+            updateTurnLabelFromGame();
+            refreshHandsFromGame();
+            refreshBoardFromGame();
+            refreshBonesHUD();
+            refreshScaleFromGame(); // apenas inverte visualmente para o jogador da vez
+            refreshLivesHUD();
+            clearSelection();
+
+            // 4) Cria o layout da WaitingScreen para o PRÓXIMO jogador
+            String nextPlayer = game.getCurrentPlayer().getName();
+            WaitingScreen waiting = new WaitingScreen();
+            Parent waitingRoot = waiting.createRoot(nextPlayer);
+
+            // 5) Troca só o root da MESMA Scene
+            Scene scene = gameWindow.getScene();
+            scene.setRoot(waitingRoot);
+
+            // 6) Listeners para voltar ao jogo
+            scene.setOnKeyPressed(e2 -> returnToGame());
+        });
+
+        // === ETAPA 6: INICIAR A PAUSA ===
+        delay.play();
+    }
+
+    private void returnToGame() {
+        Scene scene = gameWindow.getScene();
+        scene.setOnKeyPressed(null);
+        scene.setRoot(gameRoot);
+
+        // libera clique de turno novamente
+        isPassingTurn = false;
+        if (bellButton != null) {
+            bellButton.setDisable(false);
+        }
+
     }
 
     // ===========================
     // === REFRESH DO TABULEIRO ==
     // ===========================
-
-    // Encontra slot por (prefix, row, col)
     private StackPane findSlot(String prefix, int row, int col) {
         GridPane grid = prefix.equals("TOP") ? topGrid : bottomGrid;
-
         for (Node n : grid.getChildren()) {
             if (n instanceof StackPane slot) {
                 Integer r = (Integer) slot.getProperties().get("row");
@@ -673,16 +1128,13 @@ public class GameScreen {
     private void resetSlotToPlaceholder(StackPane slot) {
         Integer row = (Integer) slot.getProperties().get("row");
         if (row == null) return;
-
         String id = slot.getId();
         String imagePath;
-
         if (isTopSlot(id)) {
             imagePath = (row == 0) ? "/img/arrow.png" : "/img/paw.png";
         } else { // BOTTOM
             imagePath = (row == 0) ? "/img/paw.png" : "/img/arrow.png";
         }
-
         setImagePlaceholder(slot, imagePath);
         slot.getProperties().remove("occupied");
     }
@@ -700,58 +1152,50 @@ public class GameScreen {
         }
     }
 
-
     /**
      * Converte uma posição lógica do Board (line, col) para o slot VISUAL correto.
-     *
-     * O Board lógico é sempre fixo:
-     * 0 = posicionamento do oponente
-     * 1 = ataque do oponente
-     * 2 = ataque do jogador da vez
-     * 3 = posicionamento do jogador da vez
-     *
-     * Mas a UI pode estar em modo normal ou invertido (flippedView),
-     * então este metodo traduz a posição REAL do Board para o local onde
-     * a carta deve ser desenhada visualmente (TOP/BOTTOM e row 0/1).
      */
-
     private StackPane getVisualSlotForBoardPosition(int line, int col) {
         boolean isTop;
         int visualRow;
 
         if (!flippedView) {
-            // visão normal: P2 em cima, P1 embaixo
-            if (line == 0) { isTop = true;  visualRow = 0; } // TOP posic
-            else if (line == 1) { isTop = true;  visualRow = 1; } // TOP atk
-            else if (line == 2) { isTop = false; visualRow = 0; } // BOTTOM atk
-            else { isTop = false; visualRow = 1; }               // BOTTOM posic
+            if (line == 0) {
+                isTop = true;
+                visualRow = 0;
+            } else if (line == 1) {
+                isTop = true;
+                visualRow = 1;
+            } else if (line == 2) {
+                isTop = false;
+                visualRow = 0;
+            } else {
+                isTop = false;
+                visualRow = 1;
+            }
         } else {
-            // visão invertida: jogador da vez embaixo
-            // linhas do Board trocam de faixa visual
-            if (line == 0) { isTop = false; visualRow = 1; } // vai para BOTTOM posic
-            else if (line == 1) { isTop = false; visualRow = 0; } // BOTTOM atk
-            else if (line == 2) { isTop = true;  visualRow = 1; } // TOP atk
-            else { isTop = true;  visualRow = 0; }                // TOP posic
+            if (line == 0) {
+                isTop = false;
+                visualRow = 1;
+            } else if (line == 1) {
+                isTop = false;
+                visualRow = 0;
+            } else if (line == 2) {
+                isTop = true;
+                visualRow = 1;
+            } else {
+                isTop = true;
+                visualRow = 0;
+            }
         }
 
         return findSlot(isTop ? "TOP" : "BOTTOM", visualRow, col);
     }
 
-    /**
-     * Converte um slot VISUAL clicado (TOP/BOTTOM, row 0/1) para a posição REAL do Board (line, col).
-     *
-     * O tabuleiro lógico é sempre fixo (linhas 0–3), mas a interface pode estar em modo normal
-     * ou invertido (flippedView). Esse metodo desfaz essa projeção visual e retorna a posição
-     * verdadeira do Board onde a ação deve ocorrer.
-     *
-     * Essencial para que a UI não contenha regras de jogo: ela apenas traduz o clique visual
-     * para coordenadas lógicas e delega toda a validação/ação para a GameLogic.
-     */
-
-
+    /** Converte um slot VISUAL clicado para a posição REAL do Board (line, col). */
     private int[] getBoardPositionFromSlot(StackPane slot) {
         Integer visualRow = (Integer) slot.getProperties().get("row");
-        Integer col       = (Integer) slot.getProperties().get("col");
+        Integer col = (Integer) slot.getProperties().get("col");
         if (visualRow == null || col == null) {
             return null;
         }
@@ -760,28 +1204,23 @@ public class GameScreen {
         int line;
 
         if (!flippedView) {
-            // visão normal: (mesma lógica invertida de getVisualSlotForBoardPosition)
             if (top) {
-                line = (visualRow == 0) ? 0 : 1;   // TOP row 0 -> line 0, TOP row 1 -> line 1
+                line = (visualRow == 0) ? 0 : 1;
             } else {
-                line = (visualRow == 0) ? 2 : 3;   // BOTTOM row 0 -> line 2, BOTTOM row 1 -> line 3
+                line = (visualRow == 0) ? 2 : 3;
             }
         } else {
-            // visão invertida
             if (!top) {
-                // BOTTOM
-                line = (visualRow == 0) ? 1 : 0;   // row 0 -> line 1, row 1 -> line 0
+                line = (visualRow == 0) ? 1 : 0;
             } else {
-                // TOP
-                line = (visualRow == 0) ? 3 : 2;   // row 0 -> line 3, row 1 -> line 2
+                line = (visualRow == 0) ? 3 : 2;
             }
         }
 
-        return new int[]{ line, col };
+        return new int[]{line, col};
     }
 
     //===============REFRESHS
-
     private void refreshHandsFromGame() {
         Player current = game.getCurrentPlayer();
         playerHandP1.getChildren().clear();
@@ -789,7 +1228,6 @@ public class GameScreen {
             addCardToHandBox(playerHandP1, card);
         }
     }
-
 
     private void refreshBoardFromGame() {
         clearAllBoardSlots();
@@ -807,6 +1245,5 @@ public class GameScreen {
             }
         }
     }
-
     //Fim
 }

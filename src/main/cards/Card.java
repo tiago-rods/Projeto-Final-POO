@@ -72,12 +72,26 @@ public class Card extends StackPane {
         // Remove qualquer ícone anterior (se existir)
         getChildren().removeIf(node -> "lifeIcon".equals(node.getId()));
 
+        // --- INÍCIO DA CORREÇÃO ---
+        // Se a vida for 0 ou menos, não há ícone para mostrar.
+        // A carta será removida pela 'cleanupDeadCreatures' em breve.
+        if (hp <= 0) {
+            return;
+        }
+        // --- FIM DA CORREÇÃO ---
+
         // Determina a imagem com base no HP
         String iconPath = "/img/hp/" + hp + ".png"; // exemplo: /img/hp/3.png
-        Image hpImg = new Image(Objects.requireNonNull(
-                getClass().getResourceAsStream(iconPath)
-        ));
 
+        // Verificação defensiva para evitar NPE se o ícone (1.png, 2.png, etc.)
+        // também estiver faltando.
+        java.io.InputStream iconStream = getClass().getResourceAsStream(iconPath);
+        if (iconStream == null) {
+            System.err.println("!! AVISO: Ícone de vida não encontrado em: " + iconPath);
+            return; // Não quebra o jogo, apenas não mostra o ícone.
+        }
+
+        Image hpImg = new Image(iconStream);
         ImageView hpView = new ImageView(hpImg);
         hpView.setPreserveRatio(true);
         hpView.setSmooth(true);
@@ -89,8 +103,6 @@ public class Card extends StackPane {
 
         hpView.setFitWidth(hpWidth);
         hpView.setFitHeight(hpHeight);
-
-
 
         // Posiciona no canto inferior direito
         StackPane.setAlignment(hpView, javafx.geometry.Pos.BOTTOM_RIGHT);

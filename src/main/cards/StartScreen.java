@@ -4,6 +4,7 @@ package cards;
 import javafx.animation.FadeTransition;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -17,6 +18,7 @@ public class StartScreen {
         Label title = new Label("INSCRYPTION");
         title.setTextFill(Color.BEIGE);
         title.setFont(Font.font("Serif", FontWeight.BOLD, 64));
+        title.setEffect(new DropShadow(25, Color.rgb(255, 240, 200, 0.35)));
 
         // ===== TEXTO "PRESS ANY KEY TO START" =====
         Label pressKey = new Label("Press any key to start");
