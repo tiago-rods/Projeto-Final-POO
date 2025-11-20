@@ -14,6 +14,7 @@ public class GameLogic {
     private Player currentPlayer;
     private Deck deckP1;
     private Deck deckP2;
+    private EventBus eventBus; // EventBus injected
 
     // ANTES: private int gameScale = 0;
     // AGORA: balança separada, classe em cards
@@ -22,17 +23,17 @@ public class GameLogic {
     // +5 = Player 1 vence
     // -5 = Player 2 vence
 
-
     // Controle de compra de carta por turno
     private boolean hasDrawnThisTurn = false;
 
-    public GameLogic(Board board, Player player1, Player player2, Deck deckP1, Deck deckP2) {
+    public GameLogic(Board board, Player player1, Player player2, Deck deckP1, Deck deckP2, EventBus eventBus) {
         this.board = board;
         this.player1 = player1;
         this.player2 = player2;
         this.deckP1 = deckP1;
         this.deckP2 = deckP2;
         this.currentPlayer = player1; // Player 1 começa
+        this.eventBus = eventBus;
 
         // ANTES: this.gameScale = 0;
         // AGORA: já começa em 0 dentro de GameScale
@@ -50,12 +51,16 @@ public class GameLogic {
     // Inicializa ambos os jogadores
     public void initializeBothPlayers() {
         initializePlayerHand(player1, deckP1);
-        initializePlayerHand(player2, deckP2);
+        // Player 2 starts with 1 extra card (4 cards + 1 squirrel) for balance
+        deckP2.shuffle();
+        deckP2.draw(4, player2.getHand());
+        deckP2.drawSquirrel(player2.getHand());
         System.out.println("Jogo inicializado!");
         printGameState();
+        eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, currentPlayer));
     }
 
-    // Compra uma carta do deck (método antigo, genérico)
+    // Compra uma carta do deck (metodo antigo, genérico)
     public boolean drawCard(Player player, Deck deck) {
         if (deck.getRemainingCards() > 0) {
             deck.draw(player.getHand());
@@ -64,16 +69,16 @@ public class GameLogic {
         return false;
     }
 
-    //===========PLACE CARD
+    // ===========PLACE CARD
 
     public enum PlaceCardResult {
         SUCCESS,
-        INVALID_SPACE,        // tentou colocar em zona errada (linha de ataque, lado inimigo etc)
-        NOT_IN_CURRENT_HAND,  // índice não está na mão do jogador atual
-        NOT_A_CREATURE,       // carta não é criatura
+        INVALID_SPACE, // tentou colocar em zona errada (linha de ataque, lado inimigo etc)
+        NOT_IN_CURRENT_HAND, // índice não está na mão do jogador atual
+        NOT_A_CREATURE, // carta não é criatura
         NOT_ENOUGH_SACRIFICES,
         NOT_ENOUGH_BONES,
-        SLOT_OCCUPIED,         // já tem carta naquela coluna da sua linha de posicionamento
+        SLOT_OCCUPIED, // já tem carta naquela coluna da sua linha de posicionamento
         REQUIRES_SACRIFICE_SELECTION // Novo: Indica à UI que o modo interativo é necessário
     }
 
@@ -87,12 +92,12 @@ public class GameLogic {
         return available >= bloodCost;
     }
 
-
-    // Este método agora lida APENAS com cartas de custo 0 (sangue) ou custo de ossos.
+    // Este metodo agora lida APENAS com cartas de custo 0 (sangue) ou custo de
+    // ossos.
     // Se a carta tiver custo de sangue, ele retorna REQUIRES_SACRIFICE_SELECTION.
     public PlaceCardResult tryPlaceCardFromCurrentPlayerHand(int handIndex, int targetLine, int targetCol) {
 
-        // 1) Verifica se o alvo é uma zona de posicionamento do jogador atual
+        // 1 Verifica se o alvo é uma zona de posicionamento do jogador atual
         Board.SpaceType spaceType = board.getSpaceType(targetLine, targetCol);
 
         if (currentPlayer.getOrder() == 1) {
@@ -105,7 +110,7 @@ public class GameLogic {
             }
         }
 
-        // 2) Verifica se a carta está na mão real do jogador atual
+        // 2 Verifica se a carta está na mão real do jogador atual
         if (handIndex < 0 || handIndex >= currentPlayer.getHand().size()) {
             return PlaceCardResult.NOT_IN_CURRENT_HAND;
         }
@@ -115,22 +120,22 @@ public class GameLogic {
             return PlaceCardResult.NOT_A_CREATURE;
         }
 
-        // 3) Verifica se o slot está vazio na linha de posicionamento do player
+        // 3 Verifica se o slot está vazio na linha de posicionamento do player
         int linePos = (currentPlayer.getOrder() == 1) ? 3 : 0;
         if (!board.EmptySpace(linePos, targetCol)) {
             return PlaceCardResult.SLOT_OCCUPIED;
         }
 
-        // 4) Verifica custo com mais detalhe
+        // 4 Verifica custo com mais detalhe
         int bloodCost = creature.getBloodCost();
         int bonesCost = creature.getBonesCost();
 
-        // 4a) Custo de Ossos (pode pagar direto)
+        // 4a Custo de Ossos (pode pagar direto)
         if (bonesCost > 0 && currentPlayer.getBones() < bonesCost) {
             return PlaceCardResult.NOT_ENOUGH_BONES;
         }
 
-        // 4b) Custo de Sangue
+        // 4b Custo de Sangue
         if (bloodCost > 0) {
             // Verifica se o jogador TEM cartas suficientes no total
             int sacrificeable = countSacrificeableCards(currentPlayer);
@@ -141,23 +146,24 @@ public class GameLogic {
             return PlaceCardResult.REQUIRES_SACRIFICE_SELECTION;
         }
 
-        // 5) Paga o custo (apenas ossos, já que bloodCost é 0)
+        // 5 Paga o custo (apenas ossos, já que bloodCost é 0)
         payCost(currentPlayer, creature, null); // Passa null para sacrifícios
 
-        // 6) Coloca de fato no board (usa a API atual baseada em playerOrder)
+        // 6 Coloca de fato no board (usa a API atual baseada em playerOrder)
         boolean placed = board.placeCard(baseCard, targetCol, currentPlayer.getOrder());
         if (!placed) {
             return PlaceCardResult.SLOT_OCCUPIED;
-        } else{
+        } else {
             System.out.println(
                     "Carta adicionada em jogo: " + creature.getName() +
                             " | Posição: linha " + creature.getPosLine() +
-                            ", coluna " + creature.getPosCol()
-            );
+                            ", coluna " + creature.getPosCol());
             board.printBoard();
+            creature.setJustPlayed(true); // Mark as just played
+            eventBus.publish(new Event(EventType.CARD_PLAYED, currentPlayer, creature));
         }
 
-        // 7) Remove da mão
+        // 7 Remove da mão
         currentPlayer.removeCardFromHand(handIndex);
 
         return PlaceCardResult.SUCCESS;
@@ -167,9 +173,17 @@ public class GameLogic {
     public int countSacrificeableCards(Player player) {
         int count = 0;
         int line = (player.getOrder() == 1) ? 3 : 0;
+        int attackLine = (player.getOrder() == 1) ? 2 : 1;
 
+        // Check positioning row
         for (int col = 0; col < 4; col++) {
             if (!board.EmptySpace(line, col)) {
+                count++;
+            }
+        }
+        // Check attack row
+        for (int col = 0; col < 4; col++) {
+            if (!board.EmptySpace(attackLine, col)) {
                 count++;
             }
         }
@@ -182,6 +196,7 @@ public class GameLogic {
         // Paga custo de ossos
         if (card.getBonesCost() > 0) {
             player.spendBones(card.getBonesCost());
+            eventBus.publish(new Event(EventType.BONES_SPENT, player, null, card.getBonesCost()));
         }
 
         // Paga custo de sangue (sacrifica cartas da lista)
@@ -202,6 +217,7 @@ public class GameLogic {
             // Adiciona ossos se for uma CreatureCard
             if (card instanceof CreatureCard) {
                 player.addBones(1);
+                eventBus.publish(new Event(EventType.CARD_SACRIFICED, player, card));
             }
         }
         System.out.println("Sacrificadas " + cardsToSacrifice.size() + " criaturas.");
@@ -214,15 +230,17 @@ public class GameLogic {
             int targetCol,
             java.util.List<CreatureCard> sacrifices) {
 
-        // 1) Verifica se o alvo é um slot de posicionamento válido
+        // 1 Verifica se o alvo é um slot de posicionamento válido
         Board.SpaceType spaceType = board.getSpaceType(targetLine, targetCol);
         if (currentPlayer.getOrder() == 1) {
-            if (spaceType != Board.SpaceType.PLAYER_1_POSITIONING) return PlaceCardResult.INVALID_SPACE;
+            if (spaceType != Board.SpaceType.PLAYER_1_POSITIONING)
+                return PlaceCardResult.INVALID_SPACE;
         } else {
-            if (spaceType != Board.SpaceType.PLAYER_2_POSITIONING) return PlaceCardResult.INVALID_SPACE;
+            if (spaceType != Board.SpaceType.PLAYER_2_POSITIONING)
+                return PlaceCardResult.INVALID_SPACE;
         }
 
-        // 2) Verifica a carta na mão
+        // 2 Verifica a carta na mão
         if (handIndex < 0 || handIndex >= currentPlayer.getHand().size()) {
             return PlaceCardResult.NOT_IN_CURRENT_HAND;
         }
@@ -231,21 +249,21 @@ public class GameLogic {
             return PlaceCardResult.NOT_A_CREATURE;
         }
 
-        // 3) Verifica Custo
+        // 3 Verifica Custo
         int bloodCost = creature.getBloodCost();
         int bonesCost = creature.getBonesCost();
 
-        // 3a) O número de sacrifícios bate com o custo?
+        // 3a O número de sacrifícios bate com o custo?
         if (sacrifices == null || sacrifices.size() != bloodCost) {
             return PlaceCardResult.NOT_ENOUGH_SACRIFICES;
         }
 
-        // 3b) Custo de Ossos
+        // 3b Custo de Ossos
         if (bonesCost > 0 && currentPlayer.getBones() < bonesCost) {
             return PlaceCardResult.NOT_ENOUGH_BONES;
         }
 
-        // 4) VERIFICAÇÃO DE SLOT
+        // 4 VERIFICAÇÃO DE SLOT
         // O slot de destino é válido se:
         // a) Ele já está vazio
         // b) Ele contém uma das cartas que SERÁ sacrificada
@@ -269,10 +287,10 @@ public class GameLogic {
             return PlaceCardResult.SLOT_OCCUPIED;
         }
 
-        // 5) Paga o custo (agora temos a lista de sacrifícios)
+        // 5 Paga o custo (agora temos a lista de sacrifícios)
         payCost(currentPlayer, creature, sacrifices);
 
-        // 6) Coloca de fato no board
+        // 6 Coloca de fato no board
         // (A lógica de payCost já removeu as cartas, então o slot está livre)
         boolean placed = board.placeCard(baseCard, targetCol, currentPlayer.getOrder());
         if (!placed) {
@@ -282,12 +300,13 @@ public class GameLogic {
             System.out.println(
                     "Carta (com sacrifício) adicionada em jogo: " + creature.getName() +
                             " | Posição: linha " + creature.getPosLine() +
-                            ", coluna " + creature.getPosCol()
-            );
+                            ", coluna " + creature.getPosCol());
             board.printBoard();
+            creature.setJustPlayed(true); // Mark as just played
+            eventBus.publish(new Event(EventType.CARD_PLAYED, currentPlayer, creature));
         }
 
-        // 7) Remove da mão
+        // 7 Remove da mão
         currentPlayer.removeCardFromHand(handIndex);
 
         return PlaceCardResult.SUCCESS;
@@ -313,10 +332,17 @@ public class GameLogic {
 
             // Só move se tiver uma carta na pos. e o espaço de atk estiver livre
             if (cardToMove != null && board.EmptySpace(attackLine, col)) {
+                if (cardToMove instanceof CreatureCard creature && creature.isJustPlayed()) {
+                    System.out.println(creature.getName() + " acabou de ser jogada e aguarda um turno.");
+                    creature.setJustPlayed(false); // Will move next turn
+                    continue;
+                }
+
                 // O metodo moveCardToAttack chama board.moveToAttack
                 boolean moved = moveCardToAttack(attacker, col);
                 if (moved && cardToMove instanceof CreatureCard) {
                     System.out.println(cardToMove.getName() + " moveu para a linha de ataque.");
+                    eventBus.publish(new Event(EventType.CARD_MOVED, attacker, cardToMove));
                 }
             } else if (cardToMove != null) {
                 System.out.println(cardToMove.getName() + " está bloqueado e não pode avançar.");
@@ -326,7 +352,6 @@ public class GameLogic {
         // Opcional: Imprimir o board após os movimentos para debug
         System.out.println("Tabuleiro após movimentos:");
         board.printBoard();
-
 
         // === 2. FASE DE ATAQUE E LIMPEZA ===
         System.out.println("Executando ataques...");
@@ -360,21 +385,20 @@ public class GameLogic {
     }
 
     // Realiza o ataque de uma criatura específica
-    // ANTES: private void performAttack(CreatureCard attacker, Player defender, int column)
+    // ANTES: private void performAttack(CreatureCard attacker, Player defender, int
+    // column)
     // AGORA: também recebe o Player atacante
     private void performAttack(CreatureCard attacker, Player attackerPlayer, Player defender, int column) {
         int attackerLine = attacker.getPosLine();
         int attackerCol = attacker.getPosCol();
 
+        eventBus.publish(new Event(EventType.ATTACK_DECLARED, attackerPlayer, attacker));
+
         // Verifica se tem sigilo de voo (FlySigil)
         boolean hasFlying = attacker.getSigils().stream()
                 .anyMatch(s -> s.getClass().getSimpleName().equals("FlySigil"));
 
-        // --- INÍCIO DA CORREÇÃO ---
         // Vamos calcular as linhas opostas manualmente
-        // P1 ataca da linha 2 -> Oposto de Ataque = 1, Oposto de Defesa = 0
-        // P2 ataca da linha 1 -> Oposto de Ataque = 2, Oposto de Defesa = 3
-
         int oppositeAttackLine;
         int oppositeDefenseLine;
 
@@ -388,37 +412,22 @@ public class GameLogic {
 
         // 1. Busca carta na linha de ATAQUE oposta
         Card oppositeAttackCard = board.getCard(oppositeAttackLine, attackerCol);
-        // --- FIM DA CORREÇÃO ---
-
 
         if (oppositeAttackCard != null && !hasFlying) {
             // Ataque bloqueado - criaturas lutam entre si
+            System.out.println("⚔️ Ataque bloqueado na linha de frente (Linha " + oppositeAttackLine + ")");
             if (oppositeAttackCard instanceof CreatureCard) {
                 CreatureCard blocker = (CreatureCard) oppositeAttackCard;
                 resolveCombat(attacker, blocker);
             }
         } else {
-            // Ataque direto ao oponente ou carta voa por cima do bloqueador
-            // 2. Busca carta na linha de DEFESA oposta
-            Card oppositeDefenseCard = board.getCard(oppositeDefenseLine, attackerCol);
+            // Ataque direto ao oponente (ignora retaguarda)
+            int damage = attacker.getAttack();
+            System.out.println(defender.getName() + " levou " + damage + " de dano direto na balança!");
+            eventBus.publish(new Event(EventType.DAMAGE_DEALT, attackerPlayer, null, damage));
 
-            if (oppositeDefenseCard != null && !hasFlying) {
-                // Ataca a carta de defesa diretamente
-                if (oppositeDefenseCard instanceof CreatureCard) {
-                    CreatureCard defenseCreature = (CreatureCard) oppositeDefenseCard;
-                    defenseCreature.takeDamage(attacker.getAttack());
-                    defenseCreature.changeLifeIcon(Math.max(0, defenseCreature.getHealth()));
-                }
-            } else {
-
-                // Dano direto ao jogador (vai só para a balança)
-                int damage = attacker.getAttack();
-                System.out.println(defender.getName() + " levou " + damage + " de dano direto na balança!");
-
-                // Agora o dano mexe APENAS na balança
-                updateGameScale(attackerPlayer, damage);
-
-            }
+            // Agora o dano mexe APENAS na balança
+            updateGameScale(attackerPlayer, damage);
         }
     }
 
@@ -432,6 +441,8 @@ public class GameLogic {
 
         // Atualiza ícones de vida
         defender.changeLifeIcon(Math.max(0, defender.getHealth()));
+        // Assumindo player2 como defensor aqui, mas idealmente passaria o dono
+        eventBus.publish(new Event(EventType.CREATURE_DAMAGED, player2, defender, attacker.getAttack()));
 
         System.out.println("Após combate: " + attacker.getName() + " HP: " + attacker.getHealth() +
                 ", " + defender.getName() + " HP: " + defender.getHealth());
@@ -453,6 +464,7 @@ public class GameLogic {
                         Player owner = (line >= 2) ? player1 : player2;
                         owner.getGraveyard().add(creature);
                         owner.addBones(1); // Adiciona 1 osso quando criatura morre
+                        eventBus.publish(new Event(EventType.CREATURE_DIED, owner, creature));
 
                         System.out.println(creature.getName() + " foi destruída!");
                     }
@@ -466,7 +478,6 @@ public class GameLogic {
         // considera as vidas dos jogadores
         return !player1.isAlive() || !player2.isAlive();
     }
-
 
     // Retorna o vencedor do jogo
     public Player getWinner() {
@@ -485,7 +496,6 @@ public class GameLogic {
         return null;
     }
 
-
     /**
      * MODIFICADO: Este metodo agora APENAS executa as ações de fim de turno
      * (movimento e ataque) do jogador atual.
@@ -496,18 +506,19 @@ public class GameLogic {
         performEndOfTurnActions(currentPlayer);
     }
 
-
     /**
      * NOVO: Este método finaliza o turno trocando o jogador e resetando
      * os controles de compra de carta.
      */
     public void switchToNextPlayer() {
-        //muda player
+        eventBus.publish(new Event(EventType.TURN_ENDED, currentPlayer));
+
+        // muda player
         currentPlayer = (currentPlayer == player1) ? player2 : player1;
         System.out.println("\n=== Turno de " + currentPlayer.getName() + " ===");
 
         hasDrawnThisTurn = false; // Reseta o controle de compra
-
+        eventBus.publish(new Event(EventType.TURN_STARTED, currentPlayer));
     }
 
     /**
@@ -518,12 +529,15 @@ public class GameLogic {
     private void updateGameScale(Player attacker, int damage) {
         // Atualiza a balança normalmente
         scale.applyDirectDamage(attacker, damage);
+        eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, attacker));
 
         // Se a balança está pendendo para o lado do Player 1 (+5),
         // quem perde vida é o Player 2.
         if (scale.reachedPlayer1Win()) {
             player2.loseLife();
-            System.out.println("⚠ " + player2.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player2.getLives());
+            System.out.println(
+                    "⚠ " + player2.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player2.getLives());
+            eventBus.publish(new Event(EventType.LIFE_LOST, player2));
             scale.reset(); // volta para 0
         }
 
@@ -531,11 +545,12 @@ public class GameLogic {
         // quem perde vida é o Player 1.
         if (scale.reachedPlayer2Win()) {
             player1.loseLife();
-            System.out.println("⚠ " + player1.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player1.getLives());
+            System.out.println(
+                    "⚠ " + player1.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player1.getLives());
+            eventBus.publish(new Event(EventType.LIFE_LOST, player1));
             scale.reset(); // volta para 0
         }
     }
-
 
     // Fase de preparação do turno
     public void startTurnPhase(Player player) {
@@ -545,15 +560,12 @@ public class GameLogic {
         System.out.println("Cartas na mão: " + player.getHand().size());
     }
 
-
-
     // enums de draw
     public enum DrawResult {
         SUCCESS,
         ALREADY_DREW_THIS_TURN,
         DECK_EMPTY
     }
-
 
     public GameLogic.DrawResult drawFromMainDeckCurrentPlayer() {
         Deck currentDeck = (currentPlayer == player1) ? deckP1 : deckP2;
@@ -565,12 +577,15 @@ public class GameLogic {
             return DrawResult.DECK_EMPTY; // deck zerado
 
         int before = currentPlayer.getHand().size();
-        currentDeck.draw(currentPlayer.getHand()); // compra
+        Card drawn = currentDeck.draw(currentPlayer.getHand()); // compra
         hasDrawnThisTurn = true;
 
-        return (currentPlayer.getHand().size() > before)
-                ? DrawResult.SUCCESS
-                : DrawResult.DECK_EMPTY; // fallback
+        if (currentPlayer.getHand().size() > before) {
+            eventBus.publish(new Event(EventType.CARD_DRAWN, currentPlayer, drawn));
+            return DrawResult.SUCCESS;
+        } else {
+            return DrawResult.DECK_EMPTY;
+        }
     }
 
     public GameLogic.DrawResult drawFromSquirrelDeckCurrentPlayer() {
@@ -580,29 +595,53 @@ public class GameLogic {
             return DrawResult.ALREADY_DREW_THIS_TURN;
 
         int before = currentPlayer.getHand().size();
-        currentDeck.drawSquirrel(currentPlayer.getHand()); // compra esquilo
+        Card drawn = currentDeck.drawSquirrel(currentPlayer.getHand()); // compra esquilo
         hasDrawnThisTurn = true;
 
-        return (currentPlayer.getHand().size() > before)
-                ? DrawResult.SUCCESS
-                : DrawResult.DECK_EMPTY;
+        if (currentPlayer.getHand().size() > before) {
+            eventBus.publish(new Event(EventType.CARD_DRAWN, currentPlayer, drawn));
+            return DrawResult.SUCCESS;
+        } else {
+            return DrawResult.DECK_EMPTY;
+        }
     }
 
-
     // Getters
-    public Board getBoard() { return board; }
-    public Player getPlayer1() { return player1; }
-    public Player getPlayer2() { return player2; }
-    public Player getCurrentPlayer() { return currentPlayer; }
-    public Deck getDeckP1() { return deckP1; }
-    public Deck getDeckP2() { return deckP2; }
-    public boolean hasDrawnThisTurn() { return hasDrawnThisTurn; }
+    public Board getBoard() {
+        return board;
+    }
+
+    public Player getPlayer1() {
+        return player1;
+    }
+
+    public Player getPlayer2() {
+        return player2;
+    }
+
+    public Player getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    public Deck getDeckP1() {
+        return deckP1;
+    }
+
+    public Deck getDeckP2() {
+        return deckP2;
+    }
+
+    public boolean hasDrawnThisTurn() {
+        return hasDrawnThisTurn;
+    }
 
     // ANTES: retornava o int direto
     // public int getGameScale(){ return gameScale; }
 
     // AGORA: expõe o valor da balança (UI continua enxergando um int)
-    public int getGameScale(){ return scale.getValue(); }
+    public int getGameScale() {
+        return scale.getValue();
+    }
 
     // Metodo auxiliar para debug
     public void printGameState() {

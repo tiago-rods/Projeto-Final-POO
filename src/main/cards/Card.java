@@ -1,8 +1,8 @@
 package cards;
+
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
-
 
 import java.util.Objects;
 import java.util.UUID;
@@ -15,7 +15,6 @@ public class Card extends StackPane {
     private final ImageView imageView;
     private final String imagePath;
 
-
     // Starts with -1 because card starts off board
     private int posLine = -1;
     private int posCol = -1;
@@ -26,18 +25,14 @@ public class Card extends StackPane {
     public static final double HP_WIDTH_RATIO = 0.2634;
     public static final double HP_HEIGHT_RATIO = 0.30;
 
-
-
-
-    //Construtor
+    // Construtor
     public Card(String idCard, String name, String imagePath) {
         this.idCard = idCard;
         this.name = name;
         this.imagePath = imagePath;
 
         Image img = new Image(Objects.requireNonNull(
-                getClass().getResourceAsStream(imagePath)
-        ));
+                getClass().getResourceAsStream(imagePath)));
         imageView = new ImageView(img);
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
@@ -58,15 +53,11 @@ public class Card extends StackPane {
         this(UUID.randomUUID().toString(), name, "/img/regular/" + name.toLowerCase() + ".png");
     }
 
-
     public void highlight(boolean on) {
         setStyle(on
                 ? "-fx-effect: dropshadow(gaussian, #f0e6d2, 18, 0.3, 0, 0);"
-                : ""
-        );
+                : "");
     }
-
-
 
     public void changeLifeIcon(int hp) {
         // Remove qualquer ícone anterior (se existir)
@@ -98,7 +89,7 @@ public class Card extends StackPane {
         hpView.setCache(true);
         hpView.setId("lifeIcon");
 
-        double hpWidth = CARD_WIDTH  * HP_WIDTH_RATIO;
+        double hpWidth = CARD_WIDTH * HP_WIDTH_RATIO;
         double hpHeight = CARD_HEIGHT * HP_HEIGHT_RATIO;
 
         hpView.setFitWidth(hpWidth);
@@ -111,21 +102,30 @@ public class Card extends StackPane {
         getChildren().add(hpView);
     }
 
+    // getters
+    public String getImagePath() {
+        return imagePath;
+    }
 
-    //getters
-    public String getImagePath() {return imagePath;}
-    public String getIdCard() { return idCard; }
-    public String getName() { return name; }
+    public String getIdCard() {
+        return idCard;
+    }
 
-    public int getPosLine () { return posLine; }
-    public int getPosCol () { return posCol; }
+    public String getName() {
+        return name;
+    }
 
-    public void setPos (int posLine, int posCol ) {
+    public int getPosLine() {
+        return posLine;
+    }
+
+    public int getPosCol() {
+        return posCol;
+    }
+
+    public void setPos(int posLine, int posCol) {
         this.posLine = posLine;
         this.posCol = posCol;
     }
-
-
-
 
 }

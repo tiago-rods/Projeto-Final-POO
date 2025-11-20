@@ -1,4 +1,4 @@
-package cards;
+package UI;
 
 
 import javafx.animation.FadeTransition;
