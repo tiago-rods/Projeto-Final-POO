@@ -14,6 +14,10 @@ import javafx.util.Duration;
 
 public class StartScreen {
     public Scene createScene(Stage stage) {
+        //  TOCAR MUSICA DE FUNDO
+        AudioController.startBGM("dark_bg_edited.wav");
+        AudioController.setBGMVolume(0.6);
+
         // ===== TÍTULO DO JOGO =====
         Label title = new Label("INSCRYPTION");
         title.setTextFill(Color.BEIGE);

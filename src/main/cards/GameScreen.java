@@ -46,6 +46,9 @@ public class GameScreen {
     public GameScreen(GameLogic game, EventBus eventBus) {
         this.game = game;
         this.eventBus = eventBus;
+        AudioController.startBGM("bg_fireplace.wav");
+        // Valores entre 0.0001 e 1 (usa log, por isso n pode ser 0)
+        AudioController.setBGMVolume(0.4);
     }
 
     //====== medidas padrao
@@ -290,6 +293,7 @@ public class GameScreen {
                         "-fx-font-size: 20;"
         ));
         bellButton.setOnMouseClicked(e -> {
+            AudioController.playSFX("bell.wav");
             System.out.println("Sino clicado.");
             passTurn();
         });
@@ -649,6 +653,7 @@ public class GameScreen {
                         sib.setViewOrder(0);
                     }
                 }
+                AudioController.playSFX("hover-cards.wav");
                 card.setViewOrder(-1);
                 ScaleTransition st = new ScaleTransition(Duration.millis(140), card);
                 st.setToX(1.25);
@@ -675,6 +680,7 @@ public class GameScreen {
         hand.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
             Card card = pickCardFromEventTarget(e.getTarget());
             if (card != null) {
+                AudioController.playSFX("hover-cards.wav");
                 if (selectedCardNode == card) {
                     clearSelection();
                 } else {
@@ -772,6 +778,7 @@ public class GameScreen {
         );
 
         if (result == GameLogic.PlaceCardResult.SUCCESS) {
+            AudioController.playSFX("place_card.wav");
             clearSelection();
             refreshHandsFromGame();
             refreshBoardFromGame();
@@ -811,6 +818,9 @@ public class GameScreen {
         System.out.println("Sacrifício selecionado: " + creature.getName() +
                 ". Total: " + sacrificeCards.size());
 
+        // Efeito sonoro ao sacrificar
+        AudioController.playSFX("delete_card.wav");
+
         CreatureCard cardToPlay = (CreatureCard) cardToPlayAfterSacrifice;
         if (sacrificeCards.size() == cardToPlay.getBloodCost()) {
             // custo atingido -> modo de posicionamento
@@ -846,6 +856,8 @@ public class GameScreen {
             // jogador ainda pode clicar em outro slot
             return;
         }
+
+        AudioController.playSFX("place_card.wav");
 
         // 4. Limpa tudo e redesenha, apenas se tiver sucesso
         highlightPlacementSlots(false);
@@ -1014,6 +1026,7 @@ public class GameScreen {
 
         // Lógica de Compra de Cartas
         deck.setOnMouseClicked(e -> {
+            AudioController.playSFX("draw.wav");
             GameLogic.DrawResult result;
             if ("Esquilos".equals(deckType)) {
                 result = game.drawFromSquirrelDeckCurrentPlayer();
@@ -1104,7 +1117,8 @@ public class GameScreen {
         if (bellButton != null) {
             bellButton.setDisable(false);
         }
-
+        // Volta a musica de fundo
+        AudioController.resumeBGM();
     }
 
     // ===========================

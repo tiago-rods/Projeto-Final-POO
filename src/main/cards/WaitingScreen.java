@@ -113,7 +113,7 @@ import javafx.util.Duration;
 public class WaitingScreen {
 
     public Parent createRoot(String nextPlayerName) {
-
+        AudioController.pauseBGM();
         // ===== TÍTULO =====
         Label title = new Label("WAITING FOR " + nextPlayerName.toUpperCase());
         title.setTextFill(Color.BEIGE);
