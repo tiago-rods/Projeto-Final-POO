@@ -6,7 +6,7 @@ public class Board {
     private static final int height = 4;
 
     // Matrix representing the board [row][column]
-    private Card[][] board;
+    private final Card[][] board;
 
     /*              C0 C1 C2 C3
     *       Line 0  -  -  -  -

@@ -1,3 +1,4 @@
+import UI.GameScreen;
 import cards.*;
 import events.EventBus;
 import events.EventLogics;
@@ -6,6 +7,7 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
+import UI.StartScreen;
 
 public class Main extends Application {
     @Override
@@ -20,7 +22,7 @@ public class Main extends Application {
         Player player1 = new Player("Rafa", 1);
         Player player2 = new Player("Yano", 2);
 
-        GameLogic game = new GameLogic(board, player1, player2, deckP1, deckP2);
+        GameLogic game = new GameLogic(board, player1, player2, deckP1, deckP2, eventBus);
         EventLogics event = new EventLogics(game, eventBus);
 
 
