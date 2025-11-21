@@ -97,6 +97,7 @@ public class GameScreen {
     private HBox livesHUD;
     private Label livesValueLabel;
 
+
     // HUD de ossos
     private HBox bonesHUD;
     private Label bonesValueLabel;
@@ -111,8 +112,7 @@ public class GameScreen {
     // trava para evitar múltiplos cliques de turno
     private boolean isPassingTurn = false;
 
-    // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2
-    // embaixo)
+    // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2 embaixo)
     private boolean flippedView = false;
 
     // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
@@ -149,7 +149,8 @@ public class GameScreen {
         leftPanel.setStyle(
                 "-fx-background-color: #241d1d; " +
                         "-fx-border-color: #3a2d2d; " +
-                        "-fx-border-width: 0 2 0 0;");
+                        "-fx-border-width: 0 2 0 0;"
+        );
 
         // indicador de turno
         turnLabel = new Label();
@@ -158,7 +159,8 @@ public class GameScreen {
 
         // === HUD de ossos ===
         Image bonesImg = new Image(
-                getClass().getResource("/img/icons/bone.png").toExternalForm());
+                getClass().getResource("/img/icons/bone.png").toExternalForm()
+        );
         ImageView bonesIcon = new ImageView(bonesImg);
         bonesIcon.setFitWidth(35);
         bonesIcon.setFitHeight(35);
@@ -902,7 +904,7 @@ public class GameScreen {
         refreshBonesHUD();
     }
 
-    // NOVO: Metodo para cancelar todo o processo
+    // NOVO: Metodo para cancelar t odo o processo
     private void cancelSacrificeProcess() {
         System.out.println("Processo de sacrifício cancelado.");
 
@@ -1276,10 +1278,10 @@ public class GameScreen {
             }
         }
 
-        return new int[]{line, col};
+        return new int[] { line, col };
     }
 
-    //===============REFRESHS
+    // ===============REFRESHS
     private void refreshHandsFromGame() {
         Player current = game.getCurrentPlayer();
         playerHandP1.getChildren().clear();
@@ -1294,15 +1296,17 @@ public class GameScreen {
         for (int line = 0; line < 4; line++) {
             for (int col = 0; col < 4; col++) {
                 Card card = game.getBoard().getCard(line, col);
-                if (card == null) continue;
+                if (card == null)
+                    continue;
 
                 StackPane slot = getVisualSlotForBoardPosition(line, col);
-                if (slot == null) continue;
+                if (slot == null)
+                    continue;
 
                 slot.getChildren().setAll(card);
                 slot.getProperties().put("occupied", Boolean.TRUE);
             }
         }
     }
-    //Fim
+    // Fim
 }
