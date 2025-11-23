@@ -1,6 +1,5 @@
 package UI;
 
-
 import cards.Board;
 import cards.Card;
 import cards.CreatureCard;
@@ -69,7 +68,7 @@ public class GameScreen {
         AudioController.setBGMVolume(0.4);
     }
 
-    //====== medidas padrao
+    // ====== medidas padrao
     private static final double CARD_WIDTH = 100; // largura padrão da carta
     private static final double CARD_HEIGHT = 150; // altura padrão da carta
 
@@ -97,10 +96,12 @@ public class GameScreen {
     private HBox livesHUD;
     private Label livesValueLabel;
 
-
     // HUD de ossos
     private HBox bonesHUD;
     private Label bonesValueLabel;
+
+    // HUD de ITENS
+    private HBox itemsHUD;
 
     // HUD da balança vertical
     private StackPane scaleContainer;
@@ -112,18 +113,22 @@ public class GameScreen {
     // trava para evitar múltiplos cliques de turno
     private boolean isPassingTurn = false;
 
-    // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2 embaixo)
+    // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2
+    // embaixo)
     private boolean flippedView = false;
 
     // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
     private enum SacrificeState {
-        NORMAL,              // Estado padrão
-        AWAITING_SACRIFICE,  // Selecionou carta da mão, esperando sacrifícios
-        AWAITING_PLACEMENT   // Sacrifícios feitos, esperando local para colocar
+        NORMAL, // Estado padrão
+        AWAITING_SACRIFICE, // Selecionou carta da mão, esperando sacrifícios
+        AWAITING_PLACEMENT // Sacrifícios feitos, esperando local para colocar
     }
 
     private SacrificeState currentSacrificeState = SacrificeState.NORMAL;
     private Card cardToPlayAfterSacrifice = null; // A carta da mão que queremos jogar
+
+    // Estado de seleção de tesoura
+    private boolean isSelectingOpponentCard = false;
 
     // Lista de Slots da UI (para feedback visual)
     private java.util.List<StackPane> sacrificeSlots = new java.util.ArrayList<>();
@@ -149,8 +154,7 @@ public class GameScreen {
         leftPanel.setStyle(
                 "-fx-background-color: #241d1d; " +
                         "-fx-border-color: #3a2d2d; " +
-                        "-fx-border-width: 0 2 0 0;"
-        );
+                        "-fx-border-width: 0 2 0 0;");
 
         // indicador de turno
         turnLabel = new Label();
@@ -159,8 +163,7 @@ public class GameScreen {
 
         // === HUD de ossos ===
         Image bonesImg = new Image(
-                getClass().getResource("/img/icons/bone.png").toExternalForm()
-        );
+                getClass().getResource("/img/icons/bone.png").toExternalForm());
         ImageView bonesIcon = new ImageView(bonesImg);
         bonesIcon.setFitWidth(35);
         bonesIcon.setFitHeight(35);
@@ -190,9 +193,12 @@ public class GameScreen {
         livesHUD.setAlignment(Pos.CENTER_LEFT);
         livesHUD.getChildren().addAll(candlesIcon, livesValueLabel);
 
+        // === HUD de Itens ===
+        itemsHUD = new HBox(10);
+        itemsHUD.setAlignment(Pos.CENTER_LEFT);
+        itemsHUD.setMinHeight(60);
 
         // === BALANÇA VERTICAL NO MEIO DO PAINEL ESQUERDO ===
-
 
         scaleContainer = new StackPane();
         scaleContainer.setMinWidth(80);
@@ -206,8 +212,7 @@ public class GameScreen {
                         "-fx-border-color: #3a2d2d; " +
                         "-fx-border-width: 3; " +
                         "-fx-border-radius: 3;" +
-                        "-fx-padding: 4"
-        );
+                        "-fx-padding: 4");
 
         scaleLine = new Line();
         scaleLine.setStroke(Color.DARKGOLDENROD);
@@ -226,7 +231,7 @@ public class GameScreen {
         int minScale = -5;
         int maxScale = 5;
 
-// Cria 11 linhas: 5,4,3,2,1,0,1,2,3,4,5
+        // Cria 11 linhas: 5,4,3,2,1,0,1,2,3,4,5
         for (int v = maxScale; v >= minScale; v--) {
             HBox row = new HBox(4);
             row.setAlignment(Pos.CENTER_LEFT);
@@ -246,11 +251,11 @@ public class GameScreen {
             ticksBox.getChildren().add(row);
         }
 
-
         // Ajusta o tamanho da barra vertical conforme o container
         scaleContainer.heightProperty().addListener((obs, oldH, newH) -> {
             double h = newH.doubleValue() - 40; // padding top/bottom
-            if (h < 0) h = 0;
+            if (h < 0)
+                h = 0;
             scaleLine.setStartX(0);
             scaleLine.setStartY(-h / 2);
             scaleLine.setEndX(0);
@@ -263,7 +268,6 @@ public class GameScreen {
         StackPane.setAlignment(ticksBox, Pos.CENTER_LEFT); // ticks encostados à esquerda
         StackPane.setAlignment(scaleLine, Pos.CENTER);
         StackPane.setAlignment(scaleMarker, Pos.CENTER);
-
 
         VBox scaleBox = new VBox(6);
         scaleBox.setAlignment(Pos.CENTER_RIGHT);
@@ -291,24 +295,21 @@ public class GameScreen {
                         "-fx-font-weight: bold; " +
                         "-fx-background-radius: 8; " +
                         "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"
-        );
+                        "-fx-font-size: 20;");
         bellButton.setOnMouseEntered(e -> bellButton.setStyle(
                 "-fx-background-color: #4b2020; " +
                         "-fx-text-fill: #f0e6d2; " +
                         "-fx-font-weight: bold; " +
                         "-fx-background-radius: 8; " +
                         "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"
-        ));
+                        "-fx-font-size: 20;"));
         bellButton.setOnMouseExited(e -> bellButton.setStyle(
                 "-fx-background-color: #4b2e2e; " +
                         "-fx-text-fill: #f0e6d2; " +
                         "-fx-font-weight: bold; " +
                         "-fx-background-radius: 8; " +
                         "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"
-        ));
+                        "-fx-font-size: 20;"));
         bellButton.setOnMouseClicked(e -> {
             AudioController.playSFX("bell.wav");
             System.out.println("Sino clicado.");
@@ -320,13 +321,12 @@ public class GameScreen {
                 turnLabel,
                 livesHUD,
                 bonesHUD,
+                itemsHUD,
                 spacerTop,
                 scaleBox,
                 spacerBottom,
                 messageLabel,
-                bellButton
-        );
-
+                bellButton);
 
         // ====== TABULEIRO (80%) ======
         VBox boardArea = new VBox();
@@ -336,8 +336,7 @@ public class GameScreen {
                 "-fx-background-color: #2b2222;" +
                         "-fx-border-color: #6a4c4c;" +
                         "-fx-border-style: dashed;" +
-                        "-fx-border-width: 3;"
-        );
+                        "-fx-border-width: 3;");
         boardArea.setAlignment(Pos.TOP_CENTER);
 
         // Grids agora são "TOP" (cima) e "BOTTOM" (baixo)
@@ -363,15 +362,13 @@ public class GameScreen {
         StackPane deckCreatures = createDeckPlaceholder(
                 "DeckCriaturas",
                 "/img/regular/backs/common.png",
-                "Criaturas"
-        );
+                "Criaturas");
 
         // Monte de Esquilos
         StackPane deckSquirrels = createDeckPlaceholder(
                 "DeckEsquilos",
                 "/img/regular/backs/squirrel.png",
-                "Esquilos"
-        );
+                "Esquilos");
 
         deckArea.getChildren().addAll(deckCreatures, deckSquirrels);
 
@@ -411,6 +408,7 @@ public class GameScreen {
 
         refreshBonesHUD();
         refreshLivesHUD();
+        refreshItemsHUD();
         refreshBoardFromGame();
         refreshScaleFromGame(); // balança já começa coerente com o estado do jogo
     }
@@ -514,7 +512,8 @@ public class GameScreen {
                         "-fx-border-width: 2;"));
 
         // clique no slot tenta posicionar a carta selecionada
-        slot.setOnMouseClicked(e -> dropCard(slot));
+        // clique no slot tenta posicionar a carta selecionada
+        slot.setOnMouseClicked(e -> onSlotClicked(slot));
 
         return slot;
     }
@@ -596,6 +595,106 @@ public class GameScreen {
     private void refreshBonesHUD() {
         Player current = game.getCurrentPlayer();
         bonesValueLabel.setText(String.valueOf(current.getBones()));
+    }
+
+    // hud itens=================
+    private void refreshItemsHUD() {
+        itemsHUD.getChildren().clear();
+        Player current = game.getCurrentPlayer();
+        for (items.Items item : current.getItems()) {
+            Button itemBtn = new Button(item.name());
+            itemBtn.setStyle("-fx-background-color: #554444; -fx-text-fill: white; -fx-font-size: 10px;");
+            itemBtn.setOnAction(e -> onItemClicked(item));
+            // Tooltip could be added here
+            itemsHUD.getChildren().add(itemBtn);
+        }
+    }
+
+    private void onItemClicked(items.Items item) {
+        if (item instanceof items.Scissors) {
+            if (item.canUse(game, game.getCurrentPlayer())) {
+                isSelectingOpponentCard = true;
+                showMessage("Select an opponent's card to cut.");
+                // Remove item immediately or after use? Usually after use.
+                // But for scissors, use is deferred.
+                // Let's keep it in inventory until used.
+            }
+        } else {
+            if (item.canUse(game, game.getCurrentPlayer())) {
+                item.use(game, game.getCurrentPlayer());
+                game.getCurrentPlayer().getItems().remove(item); // Remove after use
+                refreshItemsHUD();
+                refreshBoardFromGame(); // Update board if item changed it
+                refreshBonesHUD();
+                refreshLivesHUD();
+                refreshScaleFromGame();
+            } else {
+                showMessage("Cannot use " + item.name() + " right now.");
+            }
+        }
+    }
+
+    private void onSlotClicked(StackPane slot) {
+        if (isSelectingOpponentCard) {
+            handleScissorsSelection(slot);
+        } else {
+            dropCard(slot);
+        }
+    }
+
+    private void handleScissorsSelection(StackPane slot) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null)
+            return;
+
+        Card card = game.getBoard().getCard(coords[0], coords[1]);
+        if (card != null && card instanceof CreatureCard) {
+            // Check if it's an opponent's card
+            boolean isOpponent = false;
+            if (game.getCurrentPlayer().getOrder() == 1) {
+                // Opponent is P2 (lines 0 and 1)
+                if (coords[0] == 0 || coords[0] == 1)
+                    isOpponent = true;
+            } else {
+                // Opponent is P1 (lines 2 and 3)
+                if (coords[0] == 2 || coords[0] == 3)
+                    isOpponent = true;
+            }
+
+            if (isOpponent) {
+                // Cut the card
+                game.getBoard().removeCard(coords[0], coords[1]);
+                game.getCurrentPlayer().getGraveyard().add(card); // Add to whose graveyard? Opponent's?
+                // Actually, usually destroyed cards go to owner's graveyard.
+                // But for simplicity, let's just remove it for now or find owner.
+                // GameLogic cleanup handles graveyard, but here we are manually removing.
+                // Let's try to find the owner.
+                Player owner = (coords[0] >= 2) ? game.getPlayer1() : game.getPlayer2();
+                owner.getGraveyard().add(card);
+
+                // Remove Scissors from inventory
+                items.Items scissors = null;
+                for (items.Items i : game.getCurrentPlayer().getItems()) {
+                    if (i instanceof items.Scissors) {
+                        scissors = i;
+                        break;
+                    }
+                }
+                if (scissors != null) {
+                    game.getCurrentPlayer().getItems().remove(scissors);
+                }
+
+                isSelectingOpponentCard = false;
+                refreshItemsHUD();
+                refreshBoardFromGame();
+                AudioController.playSFX("cut_card.wav"); // Assuming sound exists
+                showMessage("Card cut!");
+            } else {
+                showMessage("Select an OPPONENT'S card.");
+            }
+        } else {
+            showMessage("Select a valid creature card.");
+        }
     }
 
     // === helpers para saber se é TOP ou BOTTOM ===
@@ -795,8 +894,7 @@ public class GameScreen {
 
         // Usa o metodo da GameLogic
         GameLogic.PlaceCardResult result = game.tryPlaceCardFromCurrentPlayerHand(
-                handIndex, coords[0], coords[1]
-        );
+                handIndex, coords[0], coords[1]);
 
         if (result == GameLogic.PlaceCardResult.SUCCESS) {
             AudioController.playSFX("place_card.wav");
@@ -816,7 +914,8 @@ public class GameScreen {
     // NOVO: Lógica para o estado AWAITING_SACRIFICE
     private void selectSlotForSacrifice(StackPane slot) {
         int[] coords = getBoardPositionFromSlot(slot);
-        if (coords == null) return;
+        if (coords == null)
+            return;
 
         Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
         if (cardOnBoard == null || !(cardOnBoard instanceof CreatureCard creature)) {
@@ -885,8 +984,7 @@ public class GameScreen {
                 handIndex,
                 coords[0],
                 coords[1],
-                sacrificeCards
-        );
+                sacrificeCards);
 
         if (result != GameLogic.PlaceCardResult.SUCCESS) {
             System.out.println("Erro ao tentar colocar com sacrifício: " + result);
@@ -1030,7 +1128,8 @@ public class GameScreen {
     }
 
     private Card pickCardFromEventTarget(Object target) {
-        if (!(target instanceof Node n)) return null;
+        if (!(target instanceof Node n))
+            return null;
         while (n != null && !(n instanceof Card)) {
             n = n.getParent();
         }
@@ -1090,7 +1189,7 @@ public class GameScreen {
         return deck;
     }
 
-    //=============================================================================
+    // =============================================================================
     private void passTurn() {
         System.out.println("Pass turn.");
 
@@ -1132,6 +1231,7 @@ public class GameScreen {
             refreshHandsFromGame();
             refreshBoardFromGame();
             refreshBonesHUD();
+            refreshItemsHUD(); // Added to update items for the new player
             refreshScaleFromGame(); // apenas inverte visualmente para o jogador da vez
             refreshLivesHUD();
             clearSelection();

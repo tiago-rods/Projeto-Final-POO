@@ -26,6 +26,9 @@ public class GameLogic {
     // Controle de compra de carta por turno
     private boolean hasDrawnThisTurn = false;
 
+    private boolean player1ReceivedItem = false;
+    private boolean player2ReceivedItem = false;
+
     public GameLogic(Board board, Player player1, Player player2, Deck deckP1, Deck deckP2, EventBus eventBus) {
         this.board = board;
         this.player1 = player1;
@@ -51,13 +54,9 @@ public class GameLogic {
     // Inicializa ambos os jogadores
     public void initializeBothPlayers() {
         initializePlayerHand(player1, deckP1);
-        // Player 2 starts with 1 extra card (4 cards + 1 squirrel) for balance
-        deckP2.shuffle();
-        deckP2.draw(4, player2.getHand());
-        deckP2.drawSquirrel(player2.getHand());
-        System.out.println("Jogo inicializado!");
-        printGameState();
-        eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, currentPlayer));
+        initializePlayerHand(player2, deckP2);
+        grantRandomItem(player1);
+        grantRandomItem(player2);
     }
 
     // Compra uma carta do deck (metodo antigo, genérico)
@@ -67,6 +66,31 @@ public class GameLogic {
             return true;
         }
         return false;
+    }
+
+    private void grantRandomItem(Player player) {
+        // Simple random item logic
+        java.util.List<items.Items> possibleItems = new java.util.ArrayList<>();
+        possibleItems.add(new items.BottledSquirrel());
+        possibleItems.add(new items.HoggyBank());
+        possibleItems.add(new items.Pliers());
+        // Add other items as they are implemented
+
+        items.Items item = possibleItems.get(new java.util.Random().nextInt(possibleItems.size()));
+        if (player.addItem(item)) {
+            System.out.println("Player " + player.getName() + " received item: " + item.name());
+            // TODO: Publish ITEM_GAINED event
+        }
+    }
+
+    public void grantBones(Player player, int amount) {
+        player.addBones(amount);
+        // Publish event if needed, or rely on UI update
+        eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, player));
+    }
+
+    public void applyPliersDamage(Player player) {
+        updateGameScale(player, 1);
     }
 
     // ===========PLACE CARD
@@ -80,6 +104,7 @@ public class GameLogic {
         NOT_ENOUGH_BONES,
         SLOT_OCCUPIED, // já tem carta naquela coluna da sua linha de posicionamento
         REQUIRES_SACRIFICE_SELECTION // Novo: Indica à UI que o modo interativo é necessário
+
     }
 
     // helper de consulta para a UI saber se dá pra pagar custo de sangue
@@ -539,6 +564,12 @@ public class GameLogic {
                     "⚠ " + player2.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player2.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player2));
             scale.reset(); // volta para 0
+            // Reset item received flag for next life
+            player2ReceivedItem = false;
+        } else if (scale.getValue() >= 4 && !player2ReceivedItem) {
+            // Player 2 is about to lose, give item
+            grantRandomItem(player2);
+            player2ReceivedItem = true;
         }
 
         // Se a balança está pendendo para o lado do Player 2 (-5),
@@ -549,6 +580,12 @@ public class GameLogic {
                     "⚠ " + player1.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player1.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player1));
             scale.reset(); // volta para 0
+            // Reset item received flag for next life
+            player1ReceivedItem = false;
+        } else if (scale.getValue() <= -4 && !player1ReceivedItem) {
+            // Player 1 is about to lose, give item
+            grantRandomItem(player1);
+            player1ReceivedItem = true;
         }
     }
 
@@ -604,6 +641,19 @@ public class GameLogic {
         } else {
             return DrawResult.DECK_EMPTY;
         }
+    }
+
+    // NOVO: Compra esquilo via item (não gasta a compra do turno)
+    public boolean drawSquirrelFromItem(Player player) {
+        Deck currentDeck = (player == player1) ? deckP1 : deckP2;
+        int before = player.getHand().size();
+        Card drawn = currentDeck.drawSquirrel(player.getHand());
+
+        if (player.getHand().size() > before) {
+            eventBus.publish(new Event(EventType.CARD_DRAWN, player, drawn));
+            return true;
+        }
+        return false;
     }
 
     // Getters
