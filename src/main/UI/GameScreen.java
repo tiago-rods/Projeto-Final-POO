@@ -1,6 +1,5 @@
 package UI;
 
-
 import cards.Board;
 import cards.Card;
 import cards.CreatureCard;
@@ -49,7 +48,7 @@ public class GameScreen {
     private final EventBus eventBus;
 
     // ==== CONSTRUTOR ====
-    public GameScreen(GameLogic game, EventBus eventBus) {
+    public GameScreen(GameLogic game, EventBus eventBus, Runnable onRestart) {
         this.game = game;
         this.eventBus = eventBus;
 
@@ -64,12 +63,20 @@ public class GameScreen {
                 updateTurnLabelFromGame();
             });
         });
+
+        // Subscribe to GAME_ENDED event
+        this.eventBus.subscribe(events.EventType.GAME_ENDED, e -> {
+            javafx.application.Platform.runLater(() -> {
+                Player winner = (Player) e.getData();
+                showEndGameScreen(winner, onRestart);
+            });
+        });
         AudioController.startBGM("bg_fireplace.wav");
         // Valores entre 0.0001 e 1 (usa log, por isso n pode ser 0)
         AudioController.setBGMVolume(0.4);
     }
 
-    //====== medidas padrao
+    // ====== medidas padrao
     private static final double CARD_WIDTH = 100; // largura padrão da carta
     private static final double CARD_HEIGHT = 150; // altura padrão da carta
 
@@ -97,7 +104,6 @@ public class GameScreen {
     private HBox livesHUD;
     private Label livesValueLabel;
 
-
     // HUD de ossos
     private HBox bonesHUD;
     private Label bonesValueLabel;
@@ -112,14 +118,15 @@ public class GameScreen {
     // trava para evitar múltiplos cliques de turno
     private boolean isPassingTurn = false;
 
-    // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2 embaixo)
+    // orientação da câmera: false = normal (P1 embaixo), true = invertida (P2
+    // embaixo)
     private boolean flippedView = false;
 
     // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
     private enum SacrificeState {
-        NORMAL,              // Estado padrão
-        AWAITING_SACRIFICE,  // Selecionou carta da mão, esperando sacrifícios
-        AWAITING_PLACEMENT   // Sacrifícios feitos, esperando local para colocar
+        NORMAL, // Estado padrão
+        AWAITING_SACRIFICE, // Selecionou carta da mão, esperando sacrifícios
+        AWAITING_PLACEMENT // Sacrifícios feitos, esperando local para colocar
     }
 
     private SacrificeState currentSacrificeState = SacrificeState.NORMAL;
@@ -149,8 +156,7 @@ public class GameScreen {
         leftPanel.setStyle(
                 "-fx-background-color: #241d1d; " +
                         "-fx-border-color: #3a2d2d; " +
-                        "-fx-border-width: 0 2 0 0;"
-        );
+                        "-fx-border-width: 0 2 0 0;");
 
         // indicador de turno
         turnLabel = new Label();
@@ -159,8 +165,7 @@ public class GameScreen {
 
         // === HUD de ossos ===
         Image bonesImg = new Image(
-                getClass().getResource("/img/icons/bone.png").toExternalForm()
-        );
+                getClass().getResource("/img/icons/bone.png").toExternalForm());
         ImageView bonesIcon = new ImageView(bonesImg);
         bonesIcon.setFitWidth(35);
         bonesIcon.setFitHeight(35);
@@ -190,9 +195,7 @@ public class GameScreen {
         livesHUD.setAlignment(Pos.CENTER_LEFT);
         livesHUD.getChildren().addAll(candlesIcon, livesValueLabel);
 
-
         // === BALANÇA VERTICAL NO MEIO DO PAINEL ESQUERDO ===
-
 
         scaleContainer = new StackPane();
         scaleContainer.setMinWidth(80);
@@ -206,8 +209,7 @@ public class GameScreen {
                         "-fx-border-color: #3a2d2d; " +
                         "-fx-border-width: 3; " +
                         "-fx-border-radius: 3;" +
-                        "-fx-padding: 4"
-        );
+                        "-fx-padding: 4");
 
         scaleLine = new Line();
         scaleLine.setStroke(Color.DARKGOLDENROD);
@@ -226,7 +228,7 @@ public class GameScreen {
         int minScale = -5;
         int maxScale = 5;
 
-// Cria 11 linhas: 5,4,3,2,1,0,1,2,3,4,5
+        // Cria 11 linhas: 5,4,3,2,1,0,1,2,3,4,5
         for (int v = maxScale; v >= minScale; v--) {
             HBox row = new HBox(4);
             row.setAlignment(Pos.CENTER_LEFT);
@@ -246,11 +248,11 @@ public class GameScreen {
             ticksBox.getChildren().add(row);
         }
 
-
         // Ajusta o tamanho da barra vertical conforme o container
         scaleContainer.heightProperty().addListener((obs, oldH, newH) -> {
             double h = newH.doubleValue() - 40; // padding top/bottom
-            if (h < 0) h = 0;
+            if (h < 0)
+                h = 0;
             scaleLine.setStartX(0);
             scaleLine.setStartY(-h / 2);
             scaleLine.setEndX(0);
@@ -263,7 +265,6 @@ public class GameScreen {
         StackPane.setAlignment(ticksBox, Pos.CENTER_LEFT); // ticks encostados à esquerda
         StackPane.setAlignment(scaleLine, Pos.CENTER);
         StackPane.setAlignment(scaleMarker, Pos.CENTER);
-
 
         VBox scaleBox = new VBox(6);
         scaleBox.setAlignment(Pos.CENTER_RIGHT);
@@ -291,24 +292,21 @@ public class GameScreen {
                         "-fx-font-weight: bold; " +
                         "-fx-background-radius: 8; " +
                         "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"
-        );
+                        "-fx-font-size: 20;");
         bellButton.setOnMouseEntered(e -> bellButton.setStyle(
                 "-fx-background-color: #4b2020; " +
                         "-fx-text-fill: #f0e6d2; " +
                         "-fx-font-weight: bold; " +
                         "-fx-background-radius: 8; " +
                         "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"
-        ));
+                        "-fx-font-size: 20;"));
         bellButton.setOnMouseExited(e -> bellButton.setStyle(
                 "-fx-background-color: #4b2e2e; " +
                         "-fx-text-fill: #f0e6d2; " +
                         "-fx-font-weight: bold; " +
                         "-fx-background-radius: 8; " +
                         "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"
-        ));
+                        "-fx-font-size: 20;"));
         bellButton.setOnMouseClicked(e -> {
             AudioController.playSFX("bell.wav");
             System.out.println("Sino clicado.");
@@ -324,9 +322,7 @@ public class GameScreen {
                 scaleBox,
                 spacerBottom,
                 messageLabel,
-                bellButton
-        );
-
+                bellButton);
 
         // ====== TABULEIRO (80%) ======
         VBox boardArea = new VBox();
@@ -336,8 +332,7 @@ public class GameScreen {
                 "-fx-background-color: #2b2222;" +
                         "-fx-border-color: #6a4c4c;" +
                         "-fx-border-style: dashed;" +
-                        "-fx-border-width: 3;"
-        );
+                        "-fx-border-width: 3;");
         boardArea.setAlignment(Pos.TOP_CENTER);
 
         // Grids agora são "TOP" (cima) e "BOTTOM" (baixo)
@@ -363,15 +358,13 @@ public class GameScreen {
         StackPane deckCreatures = createDeckPlaceholder(
                 "DeckCriaturas",
                 "/img/regular/backs/common.png",
-                "Criaturas"
-        );
+                "Criaturas");
 
         // Monte de Esquilos
         StackPane deckSquirrels = createDeckPlaceholder(
                 "DeckEsquilos",
                 "/img/regular/backs/squirrel.png",
-                "Esquilos"
-        );
+                "Esquilos");
 
         deckArea.getChildren().addAll(deckCreatures, deckSquirrels);
 
@@ -795,8 +788,7 @@ public class GameScreen {
 
         // Usa o metodo da GameLogic
         GameLogic.PlaceCardResult result = game.tryPlaceCardFromCurrentPlayerHand(
-                handIndex, coords[0], coords[1]
-        );
+                handIndex, coords[0], coords[1]);
 
         if (result == GameLogic.PlaceCardResult.SUCCESS) {
             AudioController.playSFX("place_card.wav");
@@ -816,7 +808,8 @@ public class GameScreen {
     // NOVO: Lógica para o estado AWAITING_SACRIFICE
     private void selectSlotForSacrifice(StackPane slot) {
         int[] coords = getBoardPositionFromSlot(slot);
-        if (coords == null) return;
+        if (coords == null)
+            return;
 
         Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
         if (cardOnBoard == null || !(cardOnBoard instanceof CreatureCard creature)) {
@@ -885,8 +878,7 @@ public class GameScreen {
                 handIndex,
                 coords[0],
                 coords[1],
-                sacrificeCards
-        );
+                sacrificeCards);
 
         if (result != GameLogic.PlaceCardResult.SUCCESS) {
             System.out.println("Erro ao tentar colocar com sacrifício: " + result);
@@ -1030,7 +1022,8 @@ public class GameScreen {
     }
 
     private Card pickCardFromEventTarget(Object target) {
-        if (!(target instanceof Node n)) return null;
+        if (!(target instanceof Node n))
+            return null;
         while (n != null && !(n instanceof Card)) {
             n = n.getParent();
         }
@@ -1090,7 +1083,7 @@ public class GameScreen {
         return deck;
     }
 
-    //=============================================================================
+    // =============================================================================
     private void passTurn() {
         System.out.println("Pass turn.");
 

@@ -539,6 +539,11 @@ public class GameLogic {
                     "⚠ " + player2.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player2.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player2));
             scale.reset(); // volta para 0
+
+            if (!player2.isAlive()) {
+                System.out.println("FIM DE JOGO! " + player1.getName() + " venceu!");
+                eventBus.publish(new Event(EventType.GAME_ENDED, player1));
+            }
         }
 
         // Se a balança está pendendo para o lado do Player 2 (-5),
@@ -549,6 +554,11 @@ public class GameLogic {
                     "⚠ " + player1.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player1.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player1));
             scale.reset(); // volta para 0
+
+            if (!player1.isAlive()) {
+                System.out.println("FIM DE JOGO! " + player2.getName() + " venceu!");
+                eventBus.publish(new Event(EventType.GAME_ENDED, player2));
+            }
         }
     }
 

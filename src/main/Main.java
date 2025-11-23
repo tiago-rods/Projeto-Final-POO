@@ -12,7 +12,15 @@ import UI.StartScreen;
 public class Main extends Application {
     @Override
     public void start(Stage stage) {
+        stage.setMaximized(true);
+        stage.setTitle("Inscryption");
 
+        startNewGame(stage);
+
+        stage.show();
+    }
+
+    private void startNewGame(Stage stage) {
         // Tem que inicializar uma única vez
         EventBus eventBus = new EventBus();
 
@@ -25,34 +33,31 @@ public class Main extends Application {
         GameLogic game = new GameLogic(board, player1, player2, deckP1, deckP2, eventBus);
         EventLogics event = new EventLogics(game, eventBus);
 
-
         game.initializeBothPlayers();
         // Agora vai chamando os eventos dentro de EventLogics ...
 
-
-        //Cria e exibe a tela inicial StartScreen
+        // Cria e exibe a tela inicial StartScreen
         StartScreen startScreen = new StartScreen();
         Scene startScene = startScreen.createScene(stage);
 
-        //O Stage é a janela
-        //A Scene é o conteúdo dentro da janela
+        // O Stage é a janela
+        // A Scene é o conteúdo dentro da janela
 
         startScene.setOnKeyPressed((KeyEvent e) -> {
-                new GameScreen(game, eventBus).startGame(stage); // Vai pra GameScreen
-                startScene.setOnKeyPressed(null); // remove o listener após o primeiro disparo
+            // Passa o callback de restart que chama startNewGame novamente
+            new GameScreen(game, eventBus, () -> startNewGame(stage)).startGame(stage);
+            startScene.setOnKeyPressed(null); // remove o listener após o primeiro disparo
         });
 
-        stage.setMaximized(true);
-        stage.setTitle("Inscryption");
         stage.setScene(startScene);
-        stage.show();
     }
 
     // Na main só deve conter launch
     public static void main(String[] args) {
         launch(args);
         // Qualquer código no main depois de launch(args);
-        // (como a criação do seu GameLogic) só executa depois que a janela do JavaFX é fechada.
+        // (como a criação do seu GameLogic) só executa depois que a janela do JavaFX é
+        // fechada.
     }
 
 }
