@@ -100,8 +100,8 @@ public class GameScreen {
     private HBox bonesHUD;
     private Label bonesValueLabel;
 
-    // HUD de ITENS
-    private HBox itemsHUD;
+    // HUD de ITENS (vertical storage with images)
+    private VBox itemStorageBox;
 
     // HUD da balança vertical
     private StackPane scaleContainer;
@@ -193,10 +193,16 @@ public class GameScreen {
         livesHUD.setAlignment(Pos.CENTER_LEFT);
         livesHUD.getChildren().addAll(candlesIcon, livesValueLabel);
 
-        // === HUD de Itens ===
-        itemsHUD = new HBox(10);
-        itemsHUD.setAlignment(Pos.CENTER_LEFT);
-        itemsHUD.setMinHeight(60);
+        // === ÁREA DE ITENS (VERTICAL) ===
+        itemStorageBox = new VBox(5);
+        itemStorageBox.setAlignment(Pos.CENTER);
+        itemStorageBox.setStyle(
+                "-fx-background-color: #3a2d2d; " +
+                        "-fx-border-color: #5a4d4d; " +
+                        "-fx-border-width: 2; " +
+                        "-fx-padding: 5; " +
+                        "-fx-background-radius: 5; " +
+                        "-fx-border-radius: 5;");
 
         // === BALANÇA VERTICAL NO MEIO DO PAINEL ESQUERDO ===
 
@@ -273,6 +279,11 @@ public class GameScreen {
         scaleBox.setAlignment(Pos.CENTER_RIGHT);
         scaleBox.getChildren().addAll(scaleContainer);
 
+        // Container horizontal: Itens + Balança
+        HBox leftCenterBox = new HBox(10);
+        leftCenterBox.setAlignment(Pos.CENTER);
+        leftCenterBox.getChildren().addAll(itemStorageBox, scaleBox);
+
         // label de mensagem de ajuda
         messageLabel = new Label();
         messageLabel.setTextFill(Color.web("#ffdd88"));
@@ -321,9 +332,8 @@ public class GameScreen {
                 turnLabel,
                 livesHUD,
                 bonesHUD,
-                itemsHUD,
                 spacerTop,
-                scaleBox,
+                leftCenterBox,
                 spacerBottom,
                 messageLabel,
                 bellButton);
@@ -599,14 +609,53 @@ public class GameScreen {
 
     // hud itens=================
     private void refreshItemsHUD() {
-        itemsHUD.getChildren().clear();
+        itemStorageBox.getChildren().clear();
         Player current = game.getCurrentPlayer();
-        for (items.Items item : current.getItems()) {
-            Button itemBtn = new Button(item.name());
-            itemBtn.setStyle("-fx-background-color: #554444; -fx-text-fill: white; -fx-font-size: 10px;");
-            itemBtn.setOnAction(e -> onItemClicked(item));
-            // Tooltip could be added here
-            itemsHUD.getChildren().add(itemBtn);
+
+        // Cria 3 slots fixos para itens
+        for (int i = 0; i < 3; i++) {
+            StackPane slot = new StackPane();
+            // Proporção 2:3 (50x75)
+            slot.setPrefSize(50, 75);
+            slot.setMinSize(50, 75);
+            slot.setMaxSize(50, 75);
+
+            slot.setStyle("-fx-background-color: rgba(0,0,0,0.3); -fx-border-color: #554444; -fx-border-radius: 3;");
+
+            if (i < current.getItems().size()) {
+                items.Items item = current.getItems().get(i);
+                ImageView iv = new ImageView(getItemImage(item.name()));
+                iv.setFitWidth(40);
+                iv.setFitHeight(60);
+                iv.setPreserveRatio(true);
+
+                // Adiciona evento de clique
+                slot.setOnMouseClicked(e -> onItemClicked(item));
+                slot.setCursor(Cursor.HAND);
+
+                // Hover effect
+                slot.setOnMouseEntered(e -> slot.setStyle(
+                        "-fx-background-color: rgba(255,255,255,0.1); -fx-border-color: #776666; -fx-border-radius: 3;"));
+                slot.setOnMouseExited(e -> slot.setStyle(
+                        "-fx-background-color: rgba(0,0,0,0.3); -fx-border-color: #554444; -fx-border-radius: 3;"));
+
+                slot.getChildren().add(iv);
+            }
+
+            itemStorageBox.getChildren().add(slot);
+        }
+    }
+
+    private Image getItemImage(String itemName) {
+        try {
+            // Tenta carregar a imagem do item baseada no nome
+            // O caminho deve ser /items/NomeDoItem.jpg
+            String path = "/items/" + itemName + ".jpg";
+            return new Image(getClass().getResource(path).toExternalForm());
+        } catch (Exception e) {
+            System.err.println("Erro ao carregar imagem do item: " + itemName);
+            // Retorna uma imagem de fallback
+            return new Image(getClass().getResource("/img/paw.png").toExternalForm());
         }
     }
 

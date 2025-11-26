@@ -3,7 +3,7 @@ package items;
 public class HourGlass implements Items {
     @Override
     public String name() {
-        return "Hour Glass";
+        return "HourGlass";
     }
 
     @Override

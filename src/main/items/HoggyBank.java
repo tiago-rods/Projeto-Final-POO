@@ -3,7 +3,7 @@ package items;
 public class HoggyBank implements Items {
     @Override
     public String name() {
-        return "Hoggy Bank";
+        return "HoggyBank";
     }
 
     @Override

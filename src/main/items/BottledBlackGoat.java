@@ -3,7 +3,7 @@ package items;
 public class BottledBlackGoat implements Items {
     @Override
     public String name() {
-        return "Bottled Black Goat";
+        return "BottledBlackGoat";
     }
 
     @Override

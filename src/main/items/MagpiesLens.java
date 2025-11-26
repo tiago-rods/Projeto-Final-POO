@@ -3,7 +3,7 @@ package items;
 public class MagpiesLens implements Items {
     @Override
     public String name() {
-        return "Magpies Lens";
+        return "MagpiesLens";
     }
 
     @Override

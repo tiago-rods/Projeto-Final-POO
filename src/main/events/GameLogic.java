@@ -55,6 +55,8 @@ public class GameLogic {
     public void initializeBothPlayers() {
         initializePlayerHand(player1, deckP1);
         initializePlayerHand(player2, deckP2);
+        // P2 ganha uma carta extra para balancear a vantagem do primeiro jogador
+        deckP2.draw(1, player2.getHand());
         grantRandomItem(player1);
         grantRandomItem(player2);
     }
