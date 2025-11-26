@@ -1,5 +1,8 @@
-package cards;
+package UI;
 
+import cards.Board;
+import cards.Deck;
+import cards.Player;
 import events.EventBus;
 import events.EventLogics;
 import events.GameLogic;
@@ -13,8 +16,6 @@ import javafx.scene.effect.ColorAdjust;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
 public class MenuScreen {
@@ -205,7 +206,7 @@ public class MenuScreen {
         Player player1 = new Player(p1.isEmpty() ? "Player 1" : p1, 1);
         Player player2 = new Player(p2.isEmpty() ? "Player 2" : p2, 2);
 
-        GameLogic game = new GameLogic(board, player1, player2, deckP1, deckP2);
+        GameLogic game = new GameLogic(board, player1, player2, deckP1, deckP2, eventBus);
         EventLogics event = new EventLogics(game, eventBus);
 
         game.initializeBothPlayers();
