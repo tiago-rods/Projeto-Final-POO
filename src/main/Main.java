@@ -1,49 +1,36 @@
 import UI.GameScreen;
 import cards.*;
-import events.EventBus;
-import events.EventLogics;
-import events.GameLogic;
+
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
+import javafx.scene.image.Image;
+
+import java.util.Objects;
 import UI.StartScreen;
 
 public class Main extends Application {
     @Override
     public void start(Stage stage) {
 
-        // Tem que inicializar uma única vez
-        EventBus eventBus = new EventBus();
-
-        Board board = new Board();
-        Deck deckP1 = new Deck();
-        Deck deckP2 = new Deck();
-        Player player1 = new Player("Rafa", 1);
-        Player player2 = new Player("Yano", 2);
-
-        GameLogic game = new GameLogic(board, player1, player2, deckP1, deckP2, eventBus);
-        EventLogics event = new EventLogics(game, eventBus);
-
-
-        game.initializeBothPlayers();
-        // Agora vai chamando os eventos dentro de EventLogics ...
-
-
+        // A inicialização do jogo é feita na MenuScreen ao clicar em "Play"
         //Cria e exibe a tela inicial StartScreen
         StartScreen startScreen = new StartScreen();
         Scene startScene = startScreen.createScene(stage);
+        Image Icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/img/icon.png")));
 
         //O Stage é a janela
         //A Scene é o conteúdo dentro da janela
 
         startScene.setOnKeyPressed((KeyEvent e) -> {
-                new GameScreen(game, eventBus).startGame(stage); // Vai pra GameScreen
+                new MenuScreen().start(stage); // Vai pra MenuScreen
                 startScene.setOnKeyPressed(null); // remove o listener após o primeiro disparo
         });
 
         stage.setMaximized(true);
         stage.setTitle("Inscryption");
+        stage.getIcons().add(Icon);
         stage.setScene(startScene);
         stage.show();
     }
