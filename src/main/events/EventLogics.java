@@ -63,7 +63,7 @@ public class EventLogics {
 
     private void handleTurnEnded(Event event) {
         Player player = event.getPlayer();
-        System.out.println("🏁" + player.getName() +"'s turn ended!");
+        System.out.println("🏁" + player.getName() + "'s turn ended!");
 
         if (game.isGameOver()) {
             Player winner = game.getWinner();
@@ -86,7 +86,6 @@ public class EventLogics {
         Player player = event.getPlayer();
         Card card = event.getCard();
 
-
         System.out.println("📋 " + player.getName() + " drew: " + card.getName());
         System.out.println("📝 " + player.getName() + " now has " + player.getHand().size() + " cards in hand.");
 
@@ -102,6 +101,7 @@ public class EventLogics {
         if (card instanceof CreatureCard creature) {
             System.out.println("🦎 Creature " + creature.getName() + " was played!");
             creature.changeLifeIcon(creature.getHealth());
+            activateOnPlayEffects(creature, player);
         }
 
         eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, player));
@@ -111,7 +111,7 @@ public class EventLogics {
         Card card = event.getCard();
         Player player = event.getPlayer();
 
-        System.out.println("🔄 " + player.getName() +"'s" + card.getName() + " moved forward ");
+        System.out.println("🔄 " + player.getName() + "'s" + card.getName() + " moved forward ");
 
         if (card instanceof CreatureCard creature) {
             if (creature.getPosLine() == 1 || creature.getPosLine() == 2) {
@@ -130,7 +130,7 @@ public class EventLogics {
         owner.getGraveyard().add(card);
 
         if (card instanceof CreatureCard) {
-            owner.addBones(1);
+            // owner.addBones(1); // REMOVED: GameLogic already handles this
             eventBus.publish(new Event(EventType.BONES_GAINED, owner, null, 1));
         }
 
@@ -144,7 +144,7 @@ public class EventLogics {
         System.out.println("⚰️ " + card.getName() + " was sacrificed by " + player.getName());
 
         player.getGraveyard().add(card);
-        player.addBones(1);
+        // player.addBones(1); // REMOVED: GameLogic already handles this
         eventBus.publish(new Event(EventType.BONES_GAINED, player, null, 1));
 
         if (card instanceof CreatureCard creature) {
@@ -199,11 +199,12 @@ public class EventLogics {
         }
         owner.getGraveyard().add(deadCard);
 
-        owner.addBones(1);
+        // owner.addBones(1); // REMOVED: GameLogic already handles this
         eventBus.publish(new Event(EventType.BONES_GAINED, owner, null, 1));
 
         if (deadCard instanceof CreatureCard creature) {
             System.out.println("🔮 Death Effects of " + creature.getName() + " will be activated.");
+            activateOnDeathEffects(creature, owner);
         }
 
         eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, owner));
@@ -303,12 +304,27 @@ public class EventLogics {
     private void activateEndOfTurnEffects(Player player) {
         System.out.println("🌙 Activating end of turn effects " + player.getName());
         Board board = game.getBoard();
-        int playerLine = (player.getOrder() == 1) ? 3 : 0;
+        int playerLine = (player.getOrder() == 1) ? 3 : 0; // Linha de posicionamento (ou todas?)
+        // Na verdade, efeitos podem ocorrer em qualquer carta do jogador
 
-        for (int col = 0; col < 4; col++) {
-            Card card = board.getCard(playerLine, col);
-            if (card instanceof CreatureCard creature) {
-                System.out.println("🔮 Verifying end of turn effects " + creature.getName());
+        // Iterar por todas as cartas do jogador no board
+        for (int line = 0; line < 4; line++) {
+            // Simplificação: verificar apenas linhas do jogador?
+            // P1: 2 e 3. P2: 0 e 1.
+            boolean isPlayerRow = (player.getOrder() == 1) ? (line >= 2) : (line <= 1);
+            if (!isPlayerRow)
+                continue;
+
+            for (int col = 0; col < 4; col++) {
+                Card card = board.getCard(line, col);
+                if (card instanceof CreatureCard creature) {
+                    // Aqui chamaria creature.onEndOfTurn() ou algo assim se existisse
+                    // Por enquanto, vamos apenas logar e preparar para sigilos
+                    for (Sigil sigil : creature.getSigils()) {
+                        // Se tivéssemos uma interface para EndOfTurnSigil, checaríamos aqui
+                        // if (sigil instanceof EndOfTurnSigil) ((EndOfTurnSigil)sigil).onEndOfTurn();
+                    }
+                }
             }
         }
     }
@@ -319,6 +335,7 @@ public class EventLogics {
 
     private void cleanupDeadCreatures() {
         System.out.println("🧹 Cleaning up dead creatures...");
+        // GameLogic já faz isso, mas se tiver algo extra de evento, fazemos aqui
     }
 
     private void displayGameResults(Player winner) {
@@ -330,8 +347,9 @@ public class EventLogics {
 
         System.out.println("🦴 Final bones - " + game.getPlayer1().getName() + ": " + game.getPlayer1().getBones() +
                 ", " + game.getPlayer2().getName() + ": " + game.getPlayer2().getBones());
-        System.out.println("📚 Cards remaining - " + game.getPlayer1().getName() + ": " + game.getPlayer1().getHand().size() +
-                ", " + game.getPlayer2().getName() + ": " + game.getPlayer2().getHand().size());
+        System.out.println(
+                "📚 Cards remaining - " + game.getPlayer1().getName() + ": " + game.getPlayer1().getHand().size() +
+                        ", " + game.getPlayer2().getName() + ": " + game.getPlayer2().getHand().size());
     }
 
     private void cleanupGameState() {
@@ -343,12 +361,38 @@ public class EventLogics {
     }
 
     private void activateOnPlayEffects(CreatureCard creature, Player player) {
+        System.out.println("✨ Activating OnPlay effects for " + creature.getName());
         for (Sigil sigil : creature.getSigils()) {
-            System.out.println("🔮 Activating sigils: " + sigil.getClass().getSimpleName());
+            System.out.println("🔮 Activating sigil (OnPlay): " + sigil.getClass().getSimpleName());
+            // if (sigil instanceof OnPlaySigil) ...
+        }
+    }
+
+    private void activateOnDeathEffects(CreatureCard creature, Player player) {
+        System.out.println("☠️ Activating OnDeath effects for " + creature.getName());
+        for (Sigil sigil : creature.getSigils()) {
+            System.out.println("🔮 Activating sigil (OnDeath): " + sigil.getClass().getSimpleName());
+            // if (sigil instanceof OnDeathSigil) ...
         }
     }
 
     private void activateStartOfTurnEffects(Player player) {
-        System.out.println("🌅 Activating start of turn effects ...");
+        System.out.println("🌅 Activating start of turn effects for " + player.getName());
+        Board board = game.getBoard();
+        // Iterar por todas as cartas do jogador no board
+        for (int line = 0; line < 4; line++) {
+            boolean isPlayerRow = (player.getOrder() == 1) ? (line >= 2) : (line <= 1);
+            if (!isPlayerRow)
+                continue;
+
+            for (int col = 0; col < 4; col++) {
+                Card card = board.getCard(line, col);
+                if (card instanceof CreatureCard creature) {
+                    for (Sigil sigil : creature.getSigils()) {
+                        // if (sigil instanceof StartOfTurnSigil) ...
+                    }
+                }
+            }
+        }
     }
 }

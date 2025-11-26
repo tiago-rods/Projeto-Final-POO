@@ -1,5 +1,10 @@
-package cards;
+package UI;
 
+
+import cards.Board;
+import cards.Card;
+import cards.CreatureCard;
+import cards.Player;
 import events.EventBus;
 import events.GameLogic;
 import javafx.animation.FadeTransition;
@@ -40,7 +45,8 @@ public class GameScreen {
     private Stage gameWindow;
     private Parent gameRoot;
 
-    // Passando o game para ca, a gnt tem controle de todos as informações da partida
+    // Passando o game para ca, a gnt tem controle de todas as informações da
+    // partida
     private final GameLogic game;
     private final EventBus eventBus;
 
@@ -48,6 +54,18 @@ public class GameScreen {
     public GameScreen(GameLogic game, EventBus eventBus) {
         this.game = game;
         this.eventBus = eventBus;
+
+        // Subscribe to game state changes to update UI automatically
+        this.eventBus.subscribe(events.EventType.GAME_STATE_CHANGED, e -> {
+            javafx.application.Platform.runLater(() -> {
+                refreshBoardFromGame();
+                refreshHandsFromGame();
+                refreshBonesHUD();
+                refreshLivesHUD();
+                refreshScaleFromGame();
+                updateTurnLabelFromGame();
+            });
+        });
         AudioController.startBGM("bg_fireplace.wav");
         // Valores entre 0.0001 e 1 (usa log, por isso n pode ser 0)
         AudioController.setBGMVolume(0.4);
@@ -166,8 +184,7 @@ public class GameScreen {
 
         // === HUD de velas (vidas) ===
         Image candlesImg = new Image(
-                getClass().getResource("/img/icons/candle.png").toExternalForm()
-        );
+                getClass().getResource("/img/icons/candle.png").toExternalForm());
         ImageView candlesIcon = new ImageView(candlesImg);
         candlesIcon.fitWidthProperty().bind(root.widthProperty().multiply(0.018));
         candlesIcon.fitHeightProperty().bind(root.widthProperty().multiply(0.018));
@@ -402,9 +419,13 @@ public class GameScreen {
     // === MÉTODOS AUXILIARES ===
     // ==========================================================
 
-    /** Atualiza a posição visual da balança vertical com base no gameScale e flippedView. */
+    /**
+     * Atualiza a posição visual da balança vertical com base no gameScale e
+     * flippedView.
+     */
     private void refreshScaleFromGame() {
-        if (scaleContainer == null || scaleMarker == null) return;
+        if (scaleContainer == null || scaleMarker == null)
+            return;
 
         int scaleValue = game.getGameScale(); // -5 .. +5
         int min = -5;
@@ -412,7 +433,8 @@ public class GameScreen {
         int range = max - min; // 10
 
         double totalHeight = scaleContainer.getHeight() - 40; // padding top/bottom
-        if (totalHeight <= 0) return;
+        if (totalHeight <= 0)
+            return;
 
         // Inverte visualmente quando a câmera está flipada
         int visualValue = flippedView ? -scaleValue : scaleValue;
@@ -467,8 +489,7 @@ public class GameScreen {
                         "-fx-border-color: #8a6a6a;" +
                         "-fx-border-radius: 5;" +
                         "-fx-background-radius: 5;" +
-                        "-fx-border-width: 2;"
-        );
+                        "-fx-border-width: 2;");
 
         // Define a imagem de placeholder
         setImagePlaceholder(slot, imagePath);
@@ -484,15 +505,13 @@ public class GameScreen {
                         "-fx-border-color: #b08a8a;" +
                         "-fx-border-radius: 5;" +
                         "-fx-background-radius: 5;" +
-                        "-fx-border-width: 2"
-        ));
+                        "-fx-border-width: 2"));
         slot.setOnMouseExited(e -> slot.setStyle(
                 "-fx-background-color: rgba(80,60,60,0.35);" +
                         "-fx-border-color: #8a6a6a;" +
                         "-fx-border-radius: 5;" +
                         "-fx-background-radius: 5;" +
-                        "-fx-border-width: 2;"
-        ));
+                        "-fx-border-width: 2;"));
 
         // clique no slot tenta posicionar a carta selecionada
         slot.setOnMouseClicked(e -> dropCard(slot));
@@ -504,8 +523,7 @@ public class GameScreen {
     private void setImagePlaceholder(StackPane slot, String resourcePath) {
         Image img = new Image(
                 getClass().getResource(resourcePath).toExternalForm(),
-                false
-        );
+                false);
         ImageView iv = new ImageView(img);
         iv.setPreserveRatio(true);
         iv.setSmooth(true);
@@ -539,16 +557,18 @@ public class GameScreen {
         slot.getChildren().setAll(iv);
     }
 
-    //=== mensagens de ajuda
+    // === mensagens de ajuda
     private void showMessage(String text) {
-        if (text == null || text.isEmpty()) return;
+        if (text == null || text.isEmpty())
+            return;
 
         messageLabel.setText(text);
         messageLabel.setOpacity(1);
         messageLabel.setVisible(true);
 
         // para Timer anterior se existir
-        if (messageHideTimer != null) messageHideTimer.stop();
+        if (messageHideTimer != null)
+            messageHideTimer.stop();
 
         // espera 2s antes do fade
         messageHideTimer = new PauseTransition(Duration.seconds(2));
@@ -566,15 +586,13 @@ public class GameScreen {
         messageHideTimer.play();
     }
 
-
-    //hud velas=================
+    // hud velas=================
     private void refreshLivesHUD() {
         Player current = game.getCurrentPlayer();
         livesValueLabel.setText(String.valueOf(current.getLives()));
     }
 
-
-    //hud ossos=================
+    // hud ossos=================
     private void refreshBonesHUD() {
         Player current = game.getCurrentPlayer();
         bonesValueLabel.setText(String.valueOf(current.getBones()));
@@ -591,7 +609,8 @@ public class GameScreen {
 
     private boolean isPositioningSlot(StackPane slot) {
         Integer row = (Integer) slot.getProperties().get("row");
-        if (row == null) return false;
+        if (row == null)
+            return false;
         String id = slot.getId();
         if (isBottomSlot(id)) {
             // BOTTOM: r=1 (seta) é posicionamento
@@ -604,7 +623,8 @@ public class GameScreen {
 
     private boolean isAttackSlot(StackPane slot) {
         Integer row = (Integer) slot.getProperties().get("row");
-        if (row == null) return false;
+        if (row == null)
+            return false;
         String id = slot.getId();
         if (isBottomSlot(id)) {
             // BOTTOM: r=0 (pata) é ataque
@@ -615,9 +635,9 @@ public class GameScreen {
         }
     }
 
-    //============================================
-    //Mao do jogador
-    //============================================
+    // ============================================
+    // Mao do jogador
+    // ============================================
     private void addCardToHandBox(HBox handBox, Card card) {
         if (handBox.getChildren().size() >= 7) {
             System.out.println("Limite máximo de 7 cartas atingido.");
@@ -692,7 +712,7 @@ public class GameScreen {
         return hand;
     }
 
-    //==========================HELPERS
+    // ==========================HELPERS
     private void updateTurnLabelFromGame() {
         Player current = game.getCurrentPlayer();
         turnLabel.setText(current.getName().toUpperCase());
@@ -746,17 +766,18 @@ public class GameScreen {
     private void dropCard(StackPane slot) {
         switch (currentSacrificeState) {
             case NORMAL -> // Comportamento antigo: tentar colocar carta de custo 0
-                    placeCardNormal(slot);
+                placeCardNormal(slot);
             case AWAITING_SACRIFICE -> // selecionar slot para sacrificar
-                    selectSlotForSacrifice(slot);
+                selectSlotForSacrifice(slot);
             case AWAITING_PLACEMENT -> // colocar a carta no slot após sacrifícios
-                    placeCardOnSacrificeSlot(slot);
+                placeCardOnSacrificeSlot(slot);
         }
     }
 
     // NOVO: Lógica para o estado NORMAL
     private void placeCardNormal(StackPane slot) {
-        if (selectedCardNode == null) return; // Nada selecionado
+        if (selectedCardNode == null)
+            return; // Nada selecionado
 
         // Pega coords e handIndex
         int[] coords = getBoardPositionFromSlot(slot);
@@ -811,8 +832,23 @@ public class GameScreen {
         sacrificeCards.add(creature);
 
         // 3. Feedback visual (seta no chão)
+
         slot.getProperties().put("original_card", cardOnBoard);
-        setImagePlaceholder(slot, "/img/arrow.png");
+
+        // Determine correct placeholder image (Arrow or Paw)
+        String id = slot.getId();
+        Integer row = (Integer) slot.getProperties().get("row");
+        String imagePath = "/img/arrow.png"; // Default
+
+        if (row != null) {
+            if (isTopSlot(id)) {
+                imagePath = (row == 0) ? "/img/arrow.png" : "/img/paw.png";
+            } else { // BOTTOM
+                imagePath = (row == 0) ? "/img/paw.png" : "/img/arrow.png";
+            }
+        }
+
+        setImagePlaceholder(slot, imagePath);
 
         System.out.println("Sacrifício selecionado: " + creature.getName() +
                 ". Total: " + sacrificeCards.size());
@@ -834,7 +870,8 @@ public class GameScreen {
     // NOVO: Lógica para o estado AWAITING_PLACEMENT
     private void placeCardOnSacrificeSlot(StackPane slot) {
         int[] coords = getBoardPositionFromSlot(slot);
-        if (coords == null) return;
+        if (coords == null)
+            return;
 
         int handIndex = game.getCurrentPlayer().getHand().indexOf(cardToPlayAfterSacrifice);
         if (handIndex == -1) {
@@ -866,7 +903,7 @@ public class GameScreen {
         refreshBonesHUD();
     }
 
-    // NOVO: Método para cancelar todo o processo
+    // NOVO: Metodo para cancelar t odo o processo
     private void cancelSacrificeProcess() {
         System.out.println("Processo de sacrifício cancelado.");
 
@@ -902,26 +939,31 @@ public class GameScreen {
     // --- HELPERS DE DESTAQUE VISUAL ---
     private void highlightSacrificeableSlots(boolean highlight) {
         for (Node n : topGrid.getChildren()) {
-            if (n instanceof StackPane s) toggleSlotHighlight(s, highlight);
+            if (n instanceof StackPane s)
+                toggleSlotHighlight(s, highlight);
         }
         for (Node n : bottomGrid.getChildren()) {
-            if (n instanceof StackPane s) toggleSlotHighlight(s, highlight);
+            if (n instanceof StackPane s)
+                toggleSlotHighlight(s, highlight);
         }
     }
 
     private void toggleSlotHighlight(StackPane slot, boolean highlight) {
         int[] coords = getBoardPositionFromSlot(slot);
-        if (coords == null) return;
+        if (coords == null)
+            return;
 
         Board.SpaceType spaceType = game.getBoard().getSpaceType(coords[0], coords[1]);
         boolean isCurrentPlayerPos = false;
 
-        if (game.getCurrentPlayer().getOrder() == 1 &&
-                spaceType == Board.SpaceType.PLAYER_1_POSITIONING) {
-            isCurrentPlayerPos = true;
-        } else if (game.getCurrentPlayer().getOrder() == 2 &&
-                spaceType == Board.SpaceType.PLAYER_2_POSITIONING) {
-            isCurrentPlayerPos = true;
+        if (game.getCurrentPlayer().getOrder() == 1) {
+            if (spaceType == Board.SpaceType.PLAYER_1_POSITIONING || spaceType == Board.SpaceType.ATTACK_PLAYER1) {
+                isCurrentPlayerPos = true;
+            }
+        } else if (game.getCurrentPlayer().getOrder() == 2) {
+            if (spaceType == Board.SpaceType.PLAYER_2_POSITIONING || spaceType == Board.SpaceType.ATTACK_PLAYER2) {
+                isCurrentPlayerPos = true;
+            }
         }
 
         if (isCurrentPlayerPos) {
@@ -939,16 +981,19 @@ public class GameScreen {
 
     private void highlightPlacementSlots(boolean highlight) {
         for (Node n : topGrid.getChildren()) {
-            if (n instanceof StackPane s) togglePlacementHighlight(s, highlight);
+            if (n instanceof StackPane s)
+                togglePlacementHighlight(s, highlight);
         }
         for (Node n : bottomGrid.getChildren()) {
-            if (n instanceof StackPane s) togglePlacementHighlight(s, highlight);
+            if (n instanceof StackPane s)
+                togglePlacementHighlight(s, highlight);
         }
     }
 
     private void togglePlacementHighlight(StackPane slot, boolean highlight) {
         int[] coords = getBoardPositionFromSlot(slot);
-        if (coords == null) return;
+        if (coords == null)
+            return;
 
         Board.SpaceType spaceType = game.getBoard().getSpaceType(coords[0], coords[1]);
         boolean isCurrentPlayerPos = false;
@@ -961,7 +1006,8 @@ public class GameScreen {
             isCurrentPlayerPos = true;
         }
 
-        if (!isCurrentPlayerPos) return;
+        if (!isCurrentPlayerPos)
+            return;
 
         Card cardOnBoard = game.getBoard().getCard(coords[0], coords[1]);
         boolean isSacrificeSlot = sacrificeSlots.contains(slot);
@@ -1141,7 +1187,8 @@ public class GameScreen {
     // Reseta um slot para seta/pata original
     private void resetSlotToPlaceholder(StackPane slot) {
         Integer row = (Integer) slot.getProperties().get("row");
-        if (row == null) return;
+        if (row == null)
+            return;
         String id = slot.getId();
         String imagePath;
         if (isTopSlot(id)) {
@@ -1231,10 +1278,10 @@ public class GameScreen {
             }
         }
 
-        return new int[]{line, col};
+        return new int[] { line, col };
     }
 
-    //===============REFRESHS
+    // ===============REFRESHS
     private void refreshHandsFromGame() {
         Player current = game.getCurrentPlayer();
         playerHandP1.getChildren().clear();
@@ -1249,15 +1296,17 @@ public class GameScreen {
         for (int line = 0; line < 4; line++) {
             for (int col = 0; col < 4; col++) {
                 Card card = game.getBoard().getCard(line, col);
-                if (card == null) continue;
+                if (card == null)
+                    continue;
 
                 StackPane slot = getVisualSlotForBoardPosition(line, col);
-                if (slot == null) continue;
+                if (slot == null)
+                    continue;
 
                 slot.getChildren().setAll(card);
                 slot.getProperties().put("occupied", Boolean.TRUE);
             }
         }
     }
-    //Fim
+    // Fim
 }

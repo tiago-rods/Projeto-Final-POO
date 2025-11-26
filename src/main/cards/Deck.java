@@ -18,8 +18,6 @@ public class Deck {
     // List of Sigils
     Sigil fly = new FlySigil();
 
-
-
     public Deck() {
         this.deck = new ArrayList<>();
         this.squirrelDeck = new ArrayList<>();
@@ -53,7 +51,8 @@ public class Deck {
         CreatureCard wolf1 = new CreatureCard("wolf1", "wolf", 3, 2, 2, 0, "/img/regular/wolf.png");
         deck.add(wolf1);
 
-        CreatureCard stuntedWolf1 = new CreatureCard("stuntedWolf1", "stuntedWolf", 2, 2, 1, 0, "/img/regular/wolf_talking.png");
+        CreatureCard stuntedWolf1 = new CreatureCard("stuntedWolf1", "stuntedWolf", 2, 2, 1, 0,
+                "/img/regular/wolf_talking.png");
         deck.add(stuntedWolf1);
 
         // Teste de Sigils.FlySigil
@@ -78,8 +77,7 @@ public class Deck {
                     1,
                     0,
                     0,
-                    "/img/regular/squirrel.png"
-            );
+                    "/img/regular/squirrel.png");
             squirrelDeck.add(squirrel);
         }
     }
@@ -90,12 +88,15 @@ public class Deck {
     }
 
     // draw a Squirrel
-    public void drawSquirrel(List<Card> hand) {
+    public CreatureCard drawSquirrel(List<Card> hand) {
+        if (squirrelDeck.isEmpty())
+            return null;
         // Remove do início (pode embaralhar antes se quiser aleatoriedade)
         CreatureCard squirrelCard = squirrelDeck.remove(0);
         if (squirrelCard != null) {
             hand.add(squirrelCard);
         }
+        return squirrelCard;
     }
 
     // Maybe we will need it
@@ -124,11 +125,14 @@ public class Deck {
     }
 
     // draw a card from the "top" and adds it to hand
-    public void draw(List<Card> hand) {
+    public CreatureCard draw(List<Card> hand) {
+        if (deck.isEmpty())
+            return null;
         CreatureCard card = deck.remove(0);
         if (card != null) {
             hand.add(card);
         }
+        return card;
     }
 
     // Draw multiple cards

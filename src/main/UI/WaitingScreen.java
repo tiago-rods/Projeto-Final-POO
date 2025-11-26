@@ -92,11 +92,9 @@
 //    }
 //}
 
-package cards;
+package UI;
 
 import javafx.animation.FadeTransition;
-import javafx.animation.RotateTransition;
-import javafx.animation.ScaleTransition;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Label;

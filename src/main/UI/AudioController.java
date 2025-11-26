@@ -1,4 +1,4 @@
-package cards;
+package UI;
 
 // usando a API Java Sound.
 import javax.sound.sampled.*;
