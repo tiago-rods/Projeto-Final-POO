@@ -18,7 +18,7 @@ public class BottledSquirrel implements Items {
 
     @Override
     public void use(events.GameLogic game, cards.Player player) {
-        game.drawSquirrelFromItem(player);
+        game.triggerItemEffect(this, player, null);
     }
 
 }

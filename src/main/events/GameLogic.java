@@ -29,6 +29,8 @@ public class GameLogic {
     private boolean player1ReceivedItem = false;
     private boolean player2ReceivedItem = false;
 
+    private boolean skipNextTurn = false;
+
     public GameLogic(Board board, Player player1, Player player2, Deck deckP1, Deck deckP2, EventBus eventBus) {
         this.board = board;
         this.player1 = player1;
@@ -76,7 +78,9 @@ public class GameLogic {
         possibleItems.add(new items.BottledSquirrel());
         possibleItems.add(new items.HoggyBank());
         possibleItems.add(new items.Pliers());
-        // Add other items as they are implemented
+        possibleItems.add(new items.Hook());
+        possibleItems.add(new items.Scissors());
+        possibleItems.add(new items.HourGlass());
 
         items.Items item = possibleItems.get(new java.util.Random().nextInt(possibleItems.size()));
         if (player.addItem(item)) {
@@ -542,10 +546,104 @@ public class GameLogic {
 
         // muda player
         currentPlayer = (currentPlayer == player1) ? player2 : player1;
+
+        // Check if turn should be skipped
+        if (skipNextTurn) {
+            System.out.println("⏳ " + currentPlayer.getName() + "'s turn is skipped due to Hourglass!");
+            skipNextTurn = false; // Reset flag
+            // Switch back to the other player
+            currentPlayer = (currentPlayer == player1) ? player2 : player1;
+        }
+
         System.out.println("\n=== Turno de " + currentPlayer.getName() + " ===");
 
         hasDrawnThisTurn = false; // Reseta o controle de compra
         eventBus.publish(new Event(EventType.TURN_STARTED, currentPlayer));
+    }
+
+    public void triggerItemEffect(items.Items item, Player player, Object target) {
+        // Publish event so EventLogics can handle it (or UI can react)
+        // We pass the item as "data" or we could create a custom event field if needed.
+        // For now, let's pass the item as the data, and if we need target, we might
+        // need a custom object or just pass target as data?
+        // Event constructor: Event(EventType type, Player player, Card card, Object
+        // data)
+        // We can pass item as data. But what about target?
+        // If target is a Card, we can pass it as 'card'.
+
+        Card targetCard = (target instanceof Card) ? (Card) target : null;
+        // If target is not a card (e.g. null for Pliers), targetCard is null.
+        // We pass the Item object as the 'data'.
+
+        eventBus.publish(new Event(EventType.ITEM_USED, player, targetCard, item));
+    }
+
+    // === ITEM SPECIFIC METHODS ===
+
+    public void destroyCard(Card card) {
+        if (card != null && card.getPosLine() != -1 && card.getPosCol() != -1) {
+            board.removeCard(card.getPosLine(), card.getPosCol());
+            // Add to graveyard
+            Player owner = (card.getPosLine() >= 2) ? player1 : player2;
+            owner.getGraveyard().add(card);
+            eventBus.publish(new Event(EventType.CARD_DESTROYED, owner, card));
+        }
+    }
+
+    public void stealCard(Card card, Player thief) {
+        if (card == null || !(card instanceof CreatureCard))
+            return;
+
+        // Remove from current position
+        board.removeCard(card.getPosLine(), card.getPosCol());
+
+        // Determine target position for thief
+        int targetCol = card.getPosCol(); // Try to keep same column
+
+        // Determine lines
+        int attackLine = (thief.getOrder() == 1) ? 2 : 1;
+        int positioningLine = (thief.getOrder() == 1) ? 3 : 0;
+
+        // Check if attack line is occupied
+        Card existingCard = board.getCard(attackLine, targetCol);
+
+        boolean placed = false;
+        if (existingCard != null) {
+            // Case 2: Attack line occupied. Push back to positioning.
+            // Move existing card to positioning
+            boolean pushed = board.placeCardAt(existingCard, positioningLine, targetCol);
+            if (pushed) {
+                board.removeCard(attackLine, targetCol); // Remove from attack (it's now in positioning)
+                if (existingCard instanceof CreatureCard creature) {
+                    creature.setJustPlayed(true); // Pushed back card cannot move next round
+                }
+                // Now place stolen card in attack line
+                placed = board.placeCardAt(card, attackLine, targetCol);
+            } else {
+                // Positioning also full?
+                System.out.println("Positioning also full, cannot push back. Destroying stolen card.");
+                destroyCard(card);
+                return;
+            }
+        } else {
+            // Case 1 (or simple case): Attack line empty.
+            // Place directly in attack line.
+            placed = board.placeCardAt(card, attackLine, targetCol);
+        }
+
+        if (placed) {
+            if (card instanceof CreatureCard creature) {
+                creature.setJustPlayed(true); // Prevent moving/attacking in the same turn
+            }
+            eventBus.publish(new Event(EventType.CARD_MOVED, thief, card)); // It moved sides
+        } else {
+            System.out.println("Could not place stolen card, destroying it.");
+            destroyCard(card);
+        }
+    }
+
+    public void skipOpponentTurn() {
+        this.skipNextTurn = true;
     }
 
     /**

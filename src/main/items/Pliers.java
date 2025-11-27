@@ -20,6 +20,6 @@ public class Pliers implements Items {
     public void use(events.GameLogic game, cards.Player player) {
         // Pliers deal 1 damage to the scale in favor of the player
         // This is equivalent to dealing 1 direct damage to the opponent
-        game.applyPliersDamage(player);
+        game.triggerItemEffect(this, player, null);
     }
 }

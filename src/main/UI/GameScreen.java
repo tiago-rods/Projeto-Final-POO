@@ -127,8 +127,15 @@ public class GameScreen {
     private SacrificeState currentSacrificeState = SacrificeState.NORMAL;
     private Card cardToPlayAfterSacrifice = null; // A carta da mão que queremos jogar
 
-    // Estado de seleção de tesoura
-    private boolean isSelectingOpponentCard = false;
+    // ====== ITEM SELECTION STATE ======
+    private enum ItemSelectionMode {
+        NORMAL, // No item selection active
+        SELECTING_HOOK_TARGET, // Selecting opponent card to hook
+        SELECTING_SCISSORS_TARGET // Selecting opponent card to cut
+    }
+
+    private ItemSelectionMode currentItemSelectionMode = ItemSelectionMode.NORMAL;
+    private items.Items selectedItem = null; // The item currently being used
 
     // Lista de Slots da UI (para feedback visual)
     private java.util.List<StackPane> sacrificeSlots = new java.util.ArrayList<>();
@@ -660,20 +667,37 @@ public class GameScreen {
     }
 
     private void onItemClicked(items.Items item) {
+        if (isPassingTurn) {
+            showMessage("Cannot use items while turn is passing.");
+            return;
+        }
+        // Items that require opponent card selection
         if (item instanceof items.Scissors) {
             if (item.canUse(game, game.getCurrentPlayer())) {
-                isSelectingOpponentCard = true;
+                currentItemSelectionMode = ItemSelectionMode.SELECTING_SCISSORS_TARGET;
+                selectedItem = item;
+                highlightOpponentCards(true);
                 showMessage("Select an opponent's card to cut.");
-                // Remove item immediately or after use? Usually after use.
-                // But for scissors, use is deferred.
-                // Let's keep it in inventory until used.
+            } else {
+                showMessage("Cannot use " + item.name() + " right now.");
+            }
+        } else if (item instanceof items.Hook) {
+            if (item.canUse(game, game.getCurrentPlayer())) {
+                currentItemSelectionMode = ItemSelectionMode.SELECTING_HOOK_TARGET;
+                selectedItem = item;
+                highlightOpponentCards(true);
+                showMessage("Select an opponent's card to hook.");
+            } else {
+                showMessage("Cannot use " + item.name() + " right now.");
             }
         } else {
+            // Items with immediate effect (Hourglass, Pliers, etc.)
             if (item.canUse(game, game.getCurrentPlayer())) {
                 item.use(game, game.getCurrentPlayer());
-                game.getCurrentPlayer().getItems().remove(item); // Remove after use
+                // Removal is now handled by EventLogics via ITEM_USED event
+                // game.getCurrentPlayer().getItems().remove(item);
                 refreshItemsHUD();
-                refreshBoardFromGame(); // Update board if item changed it
+                refreshBoardFromGame();
                 refreshBonesHUD();
                 refreshLivesHUD();
                 refreshScaleFromGame();
@@ -684,10 +708,11 @@ public class GameScreen {
     }
 
     private void onSlotClicked(StackPane slot) {
-        if (isSelectingOpponentCard) {
-            handleScissorsSelection(slot);
-        } else {
-            dropCard(slot);
+        // Route based on current selection mode
+        switch (currentItemSelectionMode) {
+            case SELECTING_SCISSORS_TARGET -> handleScissorsSelection(slot);
+            case SELECTING_HOOK_TARGET -> handleHookSelection(slot);
+            case NORMAL -> dropCard(slot);
         }
     }
 
@@ -699,44 +724,20 @@ public class GameScreen {
         Card card = game.getBoard().getCard(coords[0], coords[1]);
         if (card != null && card instanceof CreatureCard) {
             // Check if it's an opponent's card
-            boolean isOpponent = false;
-            if (game.getCurrentPlayer().getOrder() == 1) {
-                // Opponent is P2 (lines 0 and 1)
-                if (coords[0] == 0 || coords[0] == 1)
-                    isOpponent = true;
-            } else {
-                // Opponent is P1 (lines 2 and 3)
-                if (coords[0] == 2 || coords[0] == 3)
-                    isOpponent = true;
-            }
-
-            if (isOpponent) {
+            if (isOpponentCard(coords[0])) {
                 // Cut the card
-                game.getBoard().removeCard(coords[0], coords[1]);
-                game.getCurrentPlayer().getGraveyard().add(card); // Add to whose graveyard? Opponent's?
-                // Actually, usually destroyed cards go to owner's graveyard.
-                // But for simplicity, let's just remove it for now or find owner.
-                // GameLogic cleanup handles graveyard, but here we are manually removing.
-                // Let's try to find the owner.
-                Player owner = (coords[0] >= 2) ? game.getPlayer1() : game.getPlayer2();
-                owner.getGraveyard().add(card);
+                // Trigger item effect via GameLogic
+                game.triggerItemEffect(selectedItem, game.getCurrentPlayer(), card);
 
-                // Remove Scissors from inventory
-                items.Items scissors = null;
-                for (items.Items i : game.getCurrentPlayer().getItems()) {
-                    if (i instanceof items.Scissors) {
-                        scissors = i;
-                        break;
-                    }
-                }
-                if (scissors != null) {
-                    game.getCurrentPlayer().getItems().remove(scissors);
-                }
+                // Manual removal is no longer needed here as EventLogics handles it
+                // if (selectedItem != null) {
+                // game.getCurrentPlayer().getItems().remove(selectedItem);
+                // }
 
-                isSelectingOpponentCard = false;
+                cancelItemSelection();
                 refreshItemsHUD();
                 refreshBoardFromGame();
-                AudioController.playSFX("cut_card.wav"); // Assuming sound exists
+                AudioController.playSFX("cut_card.wav");
                 showMessage("Card cut!");
             } else {
                 showMessage("Select an OPPONENT'S card.");
@@ -744,6 +745,129 @@ public class GameScreen {
         } else {
             showMessage("Select a valid creature card.");
         }
+    }
+
+    private void handleHookSelection(StackPane slot) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null)
+            return;
+
+        Card card = game.getBoard().getCard(coords[0], coords[1]);
+        if (card == null || !(card instanceof CreatureCard)) {
+            showMessage("Select a valid creature card.");
+            return;
+        }
+
+        // Verify it's an opponent's card
+        if (!isOpponentCard(coords[0])) {
+            showMessage("Select an OPPONENT'S card.");
+            return;
+        }
+
+        // Determine target column (same column as hooked card)
+        int targetCol = coords[1];
+
+        // Determine target lines based on current player
+        int playerPositioningLine = (game.getCurrentPlayer().getOrder() == 1) ? 3 : 0;
+        int playerAttackLine = (game.getCurrentPlayer().getOrder() == 1) ? 2 : 1;
+
+        // Check if there's space (at least one empty slot in the column)
+        boolean positioningEmpty = game.getBoard().EmptySpace(playerPositioningLine, targetCol);
+        boolean attackEmpty = game.getBoard().EmptySpace(playerAttackLine, targetCol);
+
+        if (!positioningEmpty && !attackEmpty) {
+            showMessage("No space available in that column!");
+            return;
+        }
+
+        // Trigger item effect via GameLogic
+        game.triggerItemEffect(selectedItem, game.getCurrentPlayer(), card);
+
+        cancelItemSelection();
+        refreshItemsHUD();
+        refreshBoardFromGame();
+        AudioController.playSFX("hook_pull.wav"); // Assuming sound exists or similar
+        showMessage("Card hooked!");
+    }
+
+    // Helper method to check if a card at the given line belongs to the opponent
+    private boolean isOpponentCard(int line) {
+        if (game.getCurrentPlayer().getOrder() == 1) {
+            // Current player is P1, opponent is P2 (lines 0 and 1)
+            return (line == 0 || line == 1);
+        } else {
+            // Current player is P2, opponent is P1 (lines 2 and 3)
+            return (line == 2 || line == 3);
+        }
+    }
+
+    // Highlights all opponent cards with grey border
+    private void highlightOpponentCards(boolean highlight) {
+        for (Node n : topGrid.getChildren()) {
+            if (n instanceof StackPane slot) {
+                toggleOpponentCardHighlight(slot, highlight);
+            }
+        }
+        for (Node n : bottomGrid.getChildren()) {
+            if (n instanceof StackPane slot) {
+                toggleOpponentCardHighlight(slot, highlight);
+            }
+        }
+    }
+
+    private void toggleOpponentCardHighlight(StackPane slot, boolean highlight) {
+        int[] coords = getBoardPositionFromSlot(slot);
+        if (coords == null)
+            return;
+
+        Card card = game.getBoard().getCard(coords[0], coords[1]);
+        if (card == null || !(card instanceof CreatureCard))
+            return;
+
+        // Only highlight opponent's cards
+        if (!isOpponentCard(coords[0]))
+            return;
+
+        // For Hook, also check if there's space in the target column
+        if (currentItemSelectionMode == ItemSelectionMode.SELECTING_HOOK_TARGET) {
+            int targetCol = coords[1];
+            int playerPositioningLine = (game.getCurrentPlayer().getOrder() == 1) ? 3 : 0;
+            int playerAttackLine = (game.getCurrentPlayer().getOrder() == 1) ? 2 : 1;
+
+            boolean positioningEmpty = game.getBoard().EmptySpace(playerPositioningLine, targetCol);
+            boolean attackEmpty = game.getBoard().EmptySpace(playerAttackLine, targetCol);
+
+            // Can't hook if both slots are occupied
+            if (!positioningEmpty && !attackEmpty) {
+                return; // Don't highlight this card
+            }
+        }
+
+        // Apply bright yellow border highlight
+        if (highlight) {
+            slot.setStyle(
+                    "-fx-background-color: rgba(80,60,60,0.35);" +
+                            "-fx-border-color: #FFD700;" + // Bright gold/yellow border
+                            "-fx-border-radius: 5;" +
+                            "-fx-background-radius: 5;" +
+                            "-fx-border-width: 4;" + // Even thicker border
+                            "-fx-effect: dropshadow(gaussian, #FFD700, 8, 0.6, 0, 0);"); // Glow effect
+        } else {
+            // Reset to normal style
+            slot.setStyle(
+                    "-fx-background-color: rgba(80,60,60,0.35);" +
+                            "-fx-border-color: #8a6a6a;" +
+                            "-fx-border-radius: 5;" +
+                            "-fx-background-radius: 5;" +
+                            "-fx-border-width: 2;");
+        }
+    }
+
+    // Cancel item selection and reset state
+    private void cancelItemSelection() {
+        highlightOpponentCards(false);
+        currentItemSelectionMode = ItemSelectionMode.NORMAL;
+        selectedItem = null;
     }
 
     // === helpers para saber se é TOP ou BOTTOM ===

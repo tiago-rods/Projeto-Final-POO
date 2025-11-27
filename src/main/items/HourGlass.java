@@ -13,12 +13,12 @@ public class HourGlass implements Items {
 
     @Override
     public boolean canUse(events.GameLogic game, cards.Player player) {
-        return true;
+        return true; // Can always use hourglass
     }
 
     @Override
     public void use(events.GameLogic game, cards.Player player) {
-        // TODO: Implement logic
+        game.triggerItemEffect(this, player, null);
     }
 
 }
