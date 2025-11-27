@@ -28,7 +28,7 @@ public class Main extends Application {
         });
 
         stage.setMaximized(true);
-        stage.setTitle("Inscryption");
+        stage.setTitle("Inscryption PvP");
         stage.getIcons().add(Icon);
         stage.setScene(startScene);
         stage.show();
