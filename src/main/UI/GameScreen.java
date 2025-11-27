@@ -1,5 +1,6 @@
 package UI;
 
+
 import cards.Board;
 import cards.Card;
 import cards.CreatureCard;
@@ -36,6 +37,8 @@ import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
 import javafx.animation.PauseTransition;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 
 public class GameScreen {
 
@@ -68,15 +71,15 @@ public class GameScreen {
         AudioController.setBGMVolume(0.4);
     }
 
-    // ====== medidas padrao
-    private static final double CARD_WIDTH = 100; // largura padrão da carta
-    private static final double CARD_HEIGHT = 150; // altura padrão da carta
+    //====== medidas padrao (agora dinâmicas)
+    private final DoubleProperty cardWidth = new SimpleDoubleProperty();
+    private final DoubleProperty cardHeight = new SimpleDoubleProperty();
 
     // ====== controle de seleção
     private Card selectedCardNode = null;
 
     // ======= configs da mao
-    private static final double HAND_SPACING = 5; // espaçamento “natural” entre cartas
+    private final DoubleProperty handSpacing = new SimpleDoubleProperty();
     private HBox playerHandP1;
 
     // label de turno
@@ -95,6 +98,7 @@ public class GameScreen {
     // HUD de velas (vidas)
     private HBox livesHUD;
     private Label livesValueLabel;
+
 
     // HUD de ossos
     private HBox bonesHUD;
@@ -119,9 +123,9 @@ public class GameScreen {
 
     // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
     private enum SacrificeState {
-        NORMAL, // Estado padrão
-        AWAITING_SACRIFICE, // Selecionou carta da mão, esperando sacrifícios
-        AWAITING_PLACEMENT // Sacrifícios feitos, esperando local para colocar
+        NORMAL,              // Estado padrão
+        AWAITING_SACRIFICE,  // Selecionou carta da mão, esperando sacrifícios
+        AWAITING_PLACEMENT   // Sacrifícios feitos, esperando local para colocar
     }
 
     private SacrificeState currentSacrificeState = SacrificeState.NORMAL;
@@ -154,6 +158,12 @@ public class GameScreen {
         HBox root = new HBox();
         root.setStyle("-fx-background-color: #1f1b1b;");
 
+        // Bind dimensions to root size
+        // Note: root width/height are 0 initially, but they update. 0 is better than NaN.
+        cardWidth.bind(root.widthProperty().multiply(0.052)); // approx 100/1920
+        cardHeight.bind(root.heightProperty().multiply(0.138)); // approx 150/1080
+        handSpacing.bind(root.widthProperty().multiply(0.0026)); // approx 5/1920
+
         // ====== PAINEL ESQUERDO (20%) ======
         VBox leftPanel = new VBox();
         leftPanel.setPadding(new Insets(16));
@@ -166,19 +176,19 @@ public class GameScreen {
         // indicador de turno
         turnLabel = new Label();
         turnLabel.setTextFill(Color.BEIGE);
-        turnLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 25));
+        turnLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(76.8).asString(), "px;"));
 
         // === HUD de ossos ===
         Image bonesImg = new Image(
                 getClass().getResource("/img/icons/bone.png").toExternalForm());
         ImageView bonesIcon = new ImageView(bonesImg);
-        bonesIcon.setFitWidth(35);
-        bonesIcon.setFitHeight(35);
+        bonesIcon.fitWidthProperty().bind(root.widthProperty().multiply(0.018));
+        bonesIcon.fitHeightProperty().bind(root.widthProperty().multiply(0.018));
         bonesIcon.setPreserveRatio(true);
 
         bonesValueLabel = new Label("0");
         bonesValueLabel.setTextFill(Color.BEIGE);
-        bonesValueLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 30));
+        bonesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(64).asString(), "px;"));
 
         bonesHUD = new HBox(6); // espaço entre imagem e número
         bonesHUD.setAlignment(Pos.CENTER_LEFT);
@@ -188,13 +198,13 @@ public class GameScreen {
         Image candlesImg = new Image(
                 getClass().getResource("/img/icons/candle.png").toExternalForm());
         ImageView candlesIcon = new ImageView(candlesImg);
-        candlesIcon.setFitWidth(35);
-        candlesIcon.setFitHeight(35);
+        candlesIcon.fitWidthProperty().bind(root.widthProperty().multiply(0.018));
+        candlesIcon.fitHeightProperty().bind(root.widthProperty().multiply(0.018));
         candlesIcon.setPreserveRatio(true);
 
         livesValueLabel = new Label("0");
         livesValueLabel.setTextFill(Color.BEIGE);
-        livesValueLabel.setFont(Font.font("Consolas", FontWeight.BOLD, 30));
+        livesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(64).asString(), "px;"));
 
         livesHUD = new HBox(6); // espaço entre imagem e número
         livesHUD.setAlignment(Pos.CENTER_LEFT);
@@ -213,13 +223,14 @@ public class GameScreen {
 
         // === BALANÇA VERTICAL NO MEIO DO PAINEL ESQUERDO ===
 
+
         scaleContainer = new StackPane();
-        scaleContainer.setMinWidth(80);
-        scaleContainer.setPrefWidth(80);
-        scaleContainer.setMaxWidth(80);
-        scaleContainer.setMinHeight(250);
-        scaleContainer.setPrefHeight(250);
-        scaleContainer.setMaxHeight(250);
+        scaleContainer.minWidthProperty().bind(root.widthProperty().multiply(0.041));
+        scaleContainer.prefWidthProperty().bind(root.widthProperty().multiply(0.041));
+        scaleContainer.maxWidthProperty().bind(root.widthProperty().multiply(0.041));
+        scaleContainer.minHeightProperty().bind(root.heightProperty().multiply(0.23));
+        scaleContainer.prefHeightProperty().bind(root.heightProperty().multiply(0.23));
+        scaleContainer.maxHeightProperty().bind(root.heightProperty().multiply(0.23));
         scaleContainer.setStyle(
                 "-fx-background-color: transparent; " +
                         "-fx-border-color: #3a2d2d; " +
@@ -264,6 +275,7 @@ public class GameScreen {
             ticksBox.getChildren().add(row);
         }
 
+
         // Ajusta o tamanho da barra vertical conforme o container
         scaleContainer.heightProperty().addListener((obs, oldH, newH) -> {
             double h = newH.doubleValue() - 40; // padding top/bottom
@@ -281,6 +293,7 @@ public class GameScreen {
         StackPane.setAlignment(ticksBox, Pos.CENTER_LEFT); // ticks encostados à esquerda
         StackPane.setAlignment(scaleLine, Pos.CENTER);
         StackPane.setAlignment(scaleMarker, Pos.CENTER);
+
 
         VBox scaleBox = new VBox(6);
         scaleBox.setAlignment(Pos.CENTER_RIGHT);
@@ -307,27 +320,22 @@ public class GameScreen {
         // botão de passar turno
         bellButton = new Button("Pass turn");
         bellButton.setMaxWidth(Double.MAX_VALUE);
-        bellButton.setStyle(
-                "-fx-background-color: #4b2e2e; " +
-                        "-fx-text-fill: #f0e6d2; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-background-radius: 8; " +
-                        "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;");
-        bellButton.setOnMouseEntered(e -> bellButton.setStyle(
-                "-fx-background-color: #4b2020; " +
-                        "-fx-text-fill: #f0e6d2; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-background-radius: 8; " +
-                        "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"));
-        bellButton.setOnMouseExited(e -> bellButton.setStyle(
-                "-fx-background-color: #4b2e2e; " +
-                        "-fx-text-fill: #f0e6d2; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-background-radius: 8; " +
-                        "-fx-padding: 10 14; " +
-                        "-fx-font-size: 20;"));
+
+        javafx.beans.binding.StringExpression bellFontSize = javafx.beans.binding.Bindings.concat("-fx-font-size: ", root.widthProperty().divide(96).asString(), ";");
+
+        String bellBaseStyle = "-fx-background-color: #4b2e2e; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14;";
+        String bellHoverStyle = "-fx-background-color: #4b2020; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14;";
+
+        bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellBaseStyle, bellFontSize));
+
+        bellButton.setOnMouseEntered(e -> {
+             bellButton.styleProperty().unbind();
+             bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellHoverStyle, bellFontSize));
+        });
+        bellButton.setOnMouseExited(e -> {
+             bellButton.styleProperty().unbind();
+             bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellBaseStyle, bellFontSize));
+        });
         bellButton.setOnMouseClicked(e -> {
             AudioController.playSFX("bell.wav");
             System.out.println("Sino clicado.");
@@ -406,8 +414,8 @@ public class GameScreen {
             boardArea.setPrefWidth(total * 0.80);
         });
 
-        root.prefWidthProperty().bind(stage.widthProperty());
-        root.prefHeightProperty().bind(stage.heightProperty());
+        // root.prefWidthProperty().bind(stage.widthProperty()); // Removed binding to stage
+        // root.prefHeightProperty().bind(stage.heightProperty()); // Removed binding to stage
 
         // ===== TROCA DE CONTEÚDO DA CENA =====
         Scene scene = stage.getScene();
@@ -509,10 +517,10 @@ public class GameScreen {
         // Define a imagem de placeholder
         setImagePlaceholder(slot, imagePath);
 
-        slot.setMinWidth(CARD_WIDTH);
-        slot.setMaxWidth(CARD_WIDTH);
-        slot.setMinHeight(CARD_HEIGHT);
-        slot.setMaxHeight(CARD_HEIGHT);
+        slot.minWidthProperty().bind(cardWidth);
+        slot.maxWidthProperty().bind(cardWidth);
+        slot.minHeightProperty().bind(cardHeight);
+        slot.maxHeightProperty().bind(cardHeight);
 
         // Hover
         slot.setOnMouseEntered(e -> slot.setStyle(
@@ -920,17 +928,16 @@ public class GameScreen {
 
     private HBox createPlayerHand(String prefix) {
         HBox hand = new HBox();
-        hand.setSpacing(HAND_SPACING);
+        hand.spacingProperty().bind(handSpacing);
         hand.setAlignment(Pos.CENTER_LEFT);
         hand.setId(prefix);
 
-        double fixedWidth = (CARD_WIDTH * 7) + (HAND_SPACING * 6);
-        hand.setMinWidth(fixedWidth);
-        hand.setPrefWidth(fixedWidth);
-        hand.setMaxWidth(fixedWidth);
-        hand.setMinHeight(CARD_HEIGHT);
-        hand.setPrefHeight(CARD_HEIGHT);
-        hand.setMaxHeight(CARD_HEIGHT);
+        hand.minWidthProperty().bind(cardWidth.multiply(7).add(handSpacing.multiply(6)));
+        hand.prefWidthProperty().bind(cardWidth.multiply(7).add(handSpacing.multiply(6)));
+        hand.maxWidthProperty().bind(cardWidth.multiply(7).add(handSpacing.multiply(6)));
+        hand.minHeightProperty().bind(cardHeight);
+        hand.prefHeightProperty().bind(cardHeight);
+        hand.maxHeightProperty().bind(cardHeight);
 
         // Delegação de eventos
 
@@ -1313,9 +1320,10 @@ public class GameScreen {
     private StackPane createDeckPlaceholder(String id, String imagePath, String deckType) {
         StackPane deck = new StackPane();
         deck.setId(id);
-        deck.setMaxHeight(CARD_HEIGHT * 1.2);
-        deck.setMaxWidth(CARD_WIDTH);
-        deck.setPrefSize(CARD_WIDTH, CARD_HEIGHT);
+        deck.maxHeightProperty().bind(cardHeight.multiply(1.2));
+        deck.maxWidthProperty().bind(cardWidth);
+        deck.prefWidthProperty().bind(cardWidth);
+        deck.prefHeightProperty().bind(cardHeight);
         deck.setAlignment(Pos.CENTER);
 
         // camadas visuais do deck
@@ -1323,8 +1331,8 @@ public class GameScreen {
             Image img = new Image(getClass().getResource(imagePath).toExternalForm(), false);
             ImageView iv = new ImageView(img);
             iv.setPreserveRatio(true);
-            iv.setFitWidth(CARD_WIDTH);
-            iv.setFitHeight(CARD_HEIGHT);
+            iv.fitWidthProperty().bind(cardWidth);
+            iv.fitHeightProperty().bind(cardHeight);
             iv.setTranslateY(-i * 3);
             deck.getChildren().add(iv);
         }
@@ -1362,7 +1370,7 @@ public class GameScreen {
         return deck;
     }
 
-    // =============================================================================
+    //=============================================================================
     private void passTurn() {
         System.out.println("Pass turn.");
 
