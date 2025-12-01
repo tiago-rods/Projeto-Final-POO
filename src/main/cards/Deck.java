@@ -31,38 +31,82 @@ public class Deck {
     // Adding all other cards to normal deck
     // Initialize normal deck
     public void initializeDeck() {
-        CreatureCard coyote1 = new CreatureCard("coyote1", "coyote", 2, 1, 0, 4, "/img/regular/coyote.png");
+        CreatureCard coyote1 = new CreatureCard("coyote1", "Coyote", 2, 1, 0, 4, "/img/regular/coyote.png");
         deck.add(coyote1);
 
-        CreatureCard grizzly1 = new CreatureCard("grizzly1", "grizzly", 4, 6, 3, 0, "/img/regular/grizzly.png");
+        CreatureCard grizzly1 = new CreatureCard("grizzly1", "Grizzly", 4, 6, 3, 0, "/img/regular/grizzly.png");
         deck.add(grizzly1);
 
-        CreatureCard opossum1 = new CreatureCard("opossum1", "opossum", 1, 1, 0, 2, "/img/regular/opossum.png");
+        CreatureCard opossum1 = new CreatureCard("opossum1", "Opossum", 1, 1, 0, 2, "/img/regular/opossum.png");
         deck.add(opossum1);
 
-        CreatureCard rabbit1 = new CreatureCard("rabbit1", "rabbit", 0, 1, 0, 0, "/img/regular/rabbit.png");
+        CreatureCard rabbit1 = new CreatureCard("rabbit1", "Rabbit", 0, 1, 0, 0, "/img/regular/rabbit.png");
         deck.add(rabbit1);
 
-        CreatureCard stoat1 = new CreatureCard("stoat1", "stoat", 1, 3, 1, 0, "/img/regular/stoat_talking.png");
+        CreatureCard stoat1 = new CreatureCard("stoat1", "Stoat", 1, 3, 1, 0, "/img/regular/stoat_talking.png");
         deck.add(stoat1);
-        CreatureCard stoat2 = new CreatureCard("stoat2", "stoat", 1, 3, 1, 0, "/img/regular/stoat_talking.png");
+        CreatureCard stoat2 = new CreatureCard("stoat2", "Stoat", 1, 3, 1, 0, "/img/regular/stoat_talking.png");
         deck.add(stoat2);
 
-        CreatureCard wolf1 = new CreatureCard("wolf1", "wolf", 3, 2, 2, 0, "/img/regular/wolf.png");
+        CreatureCard wolf1 = new CreatureCard("wolf1", "Wolf", 3, 2, 2, 0, "/img/regular/wolf.png");
         deck.add(wolf1);
 
-        CreatureCard stuntedWolf1 = new CreatureCard("stuntedWolf1", "stuntedWolf", 2, 2, 1, 0,
+        CreatureCard stuntedWolf1 = new CreatureCard("stuntedWolf1", "StuntedWolf", 2, 2, 1, 0,
                 "/img/regular/wolf_talking.png");
         deck.add(stuntedWolf1);
 
-        // Teste de Sigils.FlySigil
-        CreatureCard raven1 = new CreatureCard("raven1", "raven", 2, 3, 2, 0, "/img/regular/raven.png");
+        CreatureCard amalgam1 = new CreatureCard("amalgam1", "Amalgam", 3, 3, 2, 0,
+                "/img/regular/amalgam.png");
+        deck.add(amalgam1);
+
+        CreatureCard geck1 = new CreatureCard("geck1", "Geck", 1, 1, 0, 0,
+                "/img/regular/geck.png");
+        deck.add(geck1);
+
+        CreatureCard leshy = new CreatureCard("leshy", "Leshy", 0, 0, 0, 0,
+                "/img/regular/leshy.png");
+        deck.add(leshy);
+
+        CreatureCard rattler1 = new CreatureCard("rattler1", "Rattler", 3, 1, 0, 6,
+                "/img/regular/rattler.png");
+        deck.add(rattler1);
+
+        CreatureCard ringWorm1 = new CreatureCard("ringWorm1", "Ring Worm", 0, 1, 1, 0,
+                "/img/regular/ring_worm.png");
+        deck.add(ringWorm1);
+
+        CreatureCard riverSnapper1 = new CreatureCard("riverSnapper1", "River Snapper", 1, 6, 2, 0,
+                "/img/regular/river_snapper.png");
+        deck.add(riverSnapper1);
+
+        CreatureCard urayuli1 = new CreatureCard("urayuli1", "Urayuli", 7, 7, 4, 0, "/img/regular/urayuli.png");
+        deck.add(urayuli1);
+
+
+        //Sigils.FlySigil
+        CreatureCard raven1 = new CreatureCard("raven1", "Raven", 2, 3, 2, 0, "/img/regular/raven.png");
         raven1.addSigil(fly);
         deck.add(raven1);
 
-        CreatureCard sparrow1 = new CreatureCard("sparrow1", "sparrow", 1, 2, 1, 0, "/img/regular/sparrow.png");
+        CreatureCard sparrow1 = new CreatureCard("sparrow1", "Sparrow", 1, 2, 1, 0, "/img/regular/sparrow.png");
         sparrow1.addSigil(fly);
         deck.add(sparrow1);
+
+        CreatureCard bat1 = new CreatureCard("bat1", "Bat", 2, 1, 0, 4, "/img/regular/bat.png");
+        bat1.addSigil(fly);
+        deck.add(bat1);
+
+        CreatureCard bee1 = new CreatureCard("bee1", "Bee", 1, 1, 0, 0, "/img/regular/bee.png");
+        bee1.addSigil(fly);
+        deck.add(bee1);
+
+        CreatureCard mothman1 = new CreatureCard("mothman1", "Mothman", 7, 3, 1, 0, "/img/regular/mothman.png");
+        mothman1.addSigil(fly);
+        deck.add(mothman1);
+
+        CreatureCard turkeyVulture1 = new CreatureCard("turkeyVulture1", "Turkey Vulture", 3, 3, 0, 8,
+                "/img/regular/turkey_vulture.png");
+        deck.add(turkeyVulture1);
     }
 
     // Initialize squirrelDeck
