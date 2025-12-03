@@ -19,6 +19,7 @@ public class Card extends StackPane {
     private int posLine = -1;
     private int posCol = -1;
 
+    // Tamanho base "lógico" (se quiser usar em cálculos externos)
     public static final double CARD_WIDTH = 100;
     public static final double CARD_HEIGHT = 150;
 
@@ -37,13 +38,13 @@ public class Card extends StackPane {
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
         imageView.setCache(true);
+
+        // Imagem sempre ocupa o espaço atual da carta
         imageView.fitWidthProperty().bind(widthProperty());
         imageView.fitHeightProperty().bind(heightProperty());
 
-        setMinSize(CARD_WIDTH, CARD_HEIGHT);
-        setPrefSize(CARD_WIDTH, CARD_HEIGHT);
-        setMaxSize(CARD_WIDTH, CARD_HEIGHT);
-
+        // ❌ não travamos min/pref/max aqui.
+        // Quem controla o tamanho é o layout (GameScreen/slots).
         getChildren().setAll(imageView);
     }
 
@@ -63,19 +64,14 @@ public class Card extends StackPane {
         // Remove qualquer ícone anterior (se existir)
         getChildren().removeIf(node -> "lifeIcon".equals(node.getId()));
 
-        // --- INÍCIO DA CORREÇÃO ---
         // Se a vida for 0 ou menos, não há ícone para mostrar.
-        // A carta será removida pela 'cleanupDeadCreatures' em breve.
         if (hp <= 0) {
             return;
         }
-        // --- FIM DA CORREÇÃO ---
 
         // Determina a imagem com base no HP
         String iconPath = "/img/hp/" + hp + ".png"; // exemplo: /img/hp/3.png
 
-        // Verificação defensiva para evitar NPE se o ícone (1.png, 2.png, etc.)
-        // também estiver faltando.
         java.io.InputStream iconStream = getClass().getResourceAsStream(iconPath);
         if (iconStream == null) {
             System.err.println("!! AVISO: Ícone de vida não encontrado em: " + iconPath);
@@ -89,11 +85,9 @@ public class Card extends StackPane {
         hpView.setCache(true);
         hpView.setId("lifeIcon");
 
-        double hpWidth = CARD_WIDTH * HP_WIDTH_RATIO;
-        double hpHeight = CARD_HEIGHT * HP_HEIGHT_RATIO;
-
-        hpView.setFitWidth(hpWidth);
-        hpView.setFitHeight(hpHeight);
+        // ✅ Ícone proporcional ao tamanho ATUAL da carta
+        hpView.fitWidthProperty().bind(widthProperty().multiply(HP_WIDTH_RATIO));
+        hpView.fitHeightProperty().bind(heightProperty().multiply(HP_HEIGHT_RATIO));
 
         // Posiciona no canto inferior direito
         StackPane.setAlignment(hpView, javafx.geometry.Pos.BOTTOM_RIGHT);
