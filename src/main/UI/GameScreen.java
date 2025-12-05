@@ -39,6 +39,11 @@ import javafx.util.Duration;
 import javafx.animation.PauseTransition;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.control.Slider;
+import javafx.scene.effect.ColorAdjust;
+import javafx.scene.control.TextField;
 
 public class GameScreen {
 
@@ -146,6 +151,17 @@ public class GameScreen {
     // Lista de Cartas da Lógica (para enviar ao GameLogic)
     private java.util.List<CreatureCard> sacrificeCards = new java.util.ArrayList<>();
 
+    // ====== MENUS E OVERLAYS ======
+    private StackPane rootPane; // O novo root principal
+    private VBox menuOverlay;
+    private VBox settingsBox;
+    private VBox instructionsBox;
+    private VBox instructionsContentBox;
+    private VBox surrenderBox;
+    private ColorAdjust brightnessAdjust;
+    private boolean isMenuOpen = false;
+    private Label menuTitle; // Título do menu (Pause, Settings, etc)
+
     // =======================================================
     // ===== TELA DE JOGO =====
     public void startGame(Stage stage) {
@@ -153,16 +169,24 @@ public class GameScreen {
 
         // ---------------------------------------------------------------------
         // LAYOUT GERAL:
-        // [ esquerda (20%) | TABULEIRO (80%) ]
+        // Root agora é um StackPane para permitir overlays (menus)
         // ---------------------------------------------------------------------
-        HBox root = new HBox();
-        root.setStyle("-fx-background-color: #1f1b1b;");
+        rootPane = new StackPane();
+        rootPane.setStyle("-fx-background-color: #1f1b1b;");
+        
+        // Brightness effect global
+        brightnessAdjust = new ColorAdjust();
+        // rootPane.setEffect(brightnessAdjust); // REMOVIDO
 
-        // Bind dimensions to root size
-        // Note: root width/height are 0 initially, but they update. 0 is better than NaN.
-        cardWidth.bind(root.widthProperty().multiply(0.052)); // approx 100/1920
-        cardHeight.bind(root.heightProperty().multiply(0.138)); // approx 150/1080
-        handSpacing.bind(root.widthProperty().multiply(0.0026)); // approx 5/1920
+        // O layout do jogo em si (HBox)
+        HBox gameLayout = new HBox();
+        gameLayout.setStyle("-fx-background-color: transparent;");
+        gameLayout.setEffect(brightnessAdjust); // ADICIONADO
+
+        // Bind dimensions to rootPane size
+        cardWidth.bind(rootPane.widthProperty().multiply(0.052)); 
+        cardHeight.bind(rootPane.heightProperty().multiply(0.138)); 
+        handSpacing.bind(rootPane.widthProperty().multiply(0.0026)); 
 
         // ====== PAINEL ESQUERDO (20%) ======
         VBox leftPanel = new VBox();
@@ -176,19 +200,19 @@ public class GameScreen {
         // indicador de turno
         turnLabel = new Label();
         turnLabel.setTextFill(Color.BEIGE);
-        turnLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(76.8).asString(), "px;"));
+        turnLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(76.8).asString(), "px;"));
 
         // === HUD de ossos ===
         Image bonesImg = new Image(
                 getClass().getResource("/img/icons/bone.png").toExternalForm());
         ImageView bonesIcon = new ImageView(bonesImg);
-        bonesIcon.fitWidthProperty().bind(root.widthProperty().multiply(0.018));
-        bonesIcon.fitHeightProperty().bind(root.widthProperty().multiply(0.018));
+        bonesIcon.fitWidthProperty().bind(rootPane.widthProperty().multiply(0.018));
+        bonesIcon.fitHeightProperty().bind(rootPane.widthProperty().multiply(0.018));
         bonesIcon.setPreserveRatio(true);
 
         bonesValueLabel = new Label("0");
         bonesValueLabel.setTextFill(Color.BEIGE);
-        bonesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(64).asString(), "px;"));
+        bonesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(64).asString(), "px;"));
 
         bonesHUD = new HBox(6); // espaço entre imagem e número
         bonesHUD.setAlignment(Pos.CENTER_LEFT);
@@ -198,13 +222,13 @@ public class GameScreen {
         Image candlesImg = new Image(
                 getClass().getResource("/img/icons/candle.png").toExternalForm());
         ImageView candlesIcon = new ImageView(candlesImg);
-        candlesIcon.fitWidthProperty().bind(root.widthProperty().multiply(0.018));
-        candlesIcon.fitHeightProperty().bind(root.widthProperty().multiply(0.018));
+        candlesIcon.fitWidthProperty().bind(rootPane.widthProperty().multiply(0.018));
+        candlesIcon.fitHeightProperty().bind(rootPane.widthProperty().multiply(0.018));
         candlesIcon.setPreserveRatio(true);
 
         livesValueLabel = new Label("0");
         livesValueLabel.setTextFill(Color.BEIGE);
-        livesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(64).asString(), "px;"));
+        livesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(64).asString(), "px;"));
 
         livesHUD = new HBox(6); // espaço entre imagem e número
         livesHUD.setAlignment(Pos.CENTER_LEFT);
@@ -225,12 +249,12 @@ public class GameScreen {
 
 
         scaleContainer = new StackPane();
-        scaleContainer.minWidthProperty().bind(root.widthProperty().multiply(0.041));
-        scaleContainer.prefWidthProperty().bind(root.widthProperty().multiply(0.041));
-        scaleContainer.maxWidthProperty().bind(root.widthProperty().multiply(0.041));
-        scaleContainer.minHeightProperty().bind(root.heightProperty().multiply(0.23));
-        scaleContainer.prefHeightProperty().bind(root.heightProperty().multiply(0.23));
-        scaleContainer.maxHeightProperty().bind(root.heightProperty().multiply(0.23));
+        scaleContainer.minWidthProperty().bind(rootPane.widthProperty().multiply(0.041));
+        scaleContainer.prefWidthProperty().bind(rootPane.widthProperty().multiply(0.041));
+        scaleContainer.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.041));
+        scaleContainer.minHeightProperty().bind(rootPane.heightProperty().multiply(0.23));
+        scaleContainer.prefHeightProperty().bind(rootPane.heightProperty().multiply(0.23));
+        scaleContainer.maxHeightProperty().bind(rootPane.heightProperty().multiply(0.23));
         scaleContainer.setStyle(
                 "-fx-background-color: transparent; " +
                         "-fx-border-color: #3a2d2d; " +
@@ -307,7 +331,9 @@ public class GameScreen {
         // label de mensagem de ajuda
         messageLabel = new Label();
         messageLabel.setTextFill(Color.web("#ffdd88"));
-        messageLabel.setFont(Font.font("Consolas", 14));
+
+        messageLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(137).asString(), "px;"));
+
         messageLabel.setWrapText(true);
         messageLabel.setVisible(false); // começa escondido
 
@@ -321,7 +347,9 @@ public class GameScreen {
         bellButton = new Button("Pass turn");
         bellButton.setMaxWidth(Double.MAX_VALUE);
 
-        javafx.beans.binding.StringExpression bellFontSize = javafx.beans.binding.Bindings.concat("-fx-font-size: ", root.widthProperty().divide(96).asString(), ";");
+        
+        javafx.beans.binding.StringExpression bellFontSize = javafx.beans.binding.Bindings.concat("-fx-font-size: ", rootPane.widthProperty().divide(96).asString(), ";");
+        
 
         String bellBaseStyle = "-fx-background-color: #4b2e2e; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14;";
         String bellHoverStyle = "-fx-background-color: #4b2020; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14;";
@@ -406,9 +434,9 @@ public class GameScreen {
         boardArea.getChildren().addAll(topGrid, centerDivider, boardWithDecks, playerHandP1);
 
         // ====== COMPOSIÇÃO E PROPORÇÕES ======
-        root.getChildren().addAll(leftPanel, boardArea);
+        gameLayout.getChildren().addAll(leftPanel, boardArea);
 
-        root.widthProperty().addListener((obs, oldW, newW) -> {
+        rootPane.widthProperty().addListener((obs, oldW, newW) -> {
             double total = newW.doubleValue();
             leftPanel.setPrefWidth(total * 0.20);
             boardArea.setPrefWidth(total * 0.80);
@@ -417,12 +445,27 @@ public class GameScreen {
         // root.prefWidthProperty().bind(stage.widthProperty()); // Removed binding to stage
         // root.prefHeightProperty().bind(stage.heightProperty()); // Removed binding to stage
 
+        // ===== MENUS =====
+        createMenuOverlay();
+        createSettingsBox();
+        createInstructionsBox();
+        createSurrenderBox();
+
+        rootPane.getChildren().addAll(gameLayout, menuOverlay, settingsBox, instructionsBox, surrenderBox);
+
         // ===== TROCA DE CONTEÚDO DA CENA =====
         Scene scene = stage.getScene();
-        scene.setRoot(root);
+        scene.setRoot(rootPane);
+
+        // Key Listener para ESC
+        scene.setOnKeyPressed((KeyEvent event) -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                toggleMenu();
+            }
+        });
 
         // guarda o layout da tela de jogo para voltar depois da WaitingScreen
-        this.gameRoot = root;
+        this.gameRoot = rootPane;
 
         updateTurnLabelFromGame();
 
@@ -1436,7 +1479,15 @@ public class GameScreen {
 
     private void returnToGame() {
         Scene scene = gameWindow.getScene();
-        scene.setOnKeyPressed(null);
+        // scene.setOnKeyPressed(null); // REMOVIDO: precisamos restaurar o listener do ESC
+        
+        // Restaurar listener do ESC
+        scene.setOnKeyPressed((KeyEvent event) -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                toggleMenu();
+            }
+        });
+
         scene.setRoot(gameRoot);
 
         // libera clique de turno novamente
@@ -1590,4 +1641,323 @@ public class GameScreen {
         }
     }
     // Fim
+
+    // ==========================================================
+    // === MENUS E OVERLAYS ===
+    // ==========================================================
+
+    private void toggleMenu() {
+        if (isMenuOpen) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    }
+
+    private void openMenu() {
+        isMenuOpen = true;
+        menuOverlay.setVisible(true);
+        settingsBox.setVisible(false);
+        instructionsBox.setVisible(false);
+        surrenderBox.setVisible(false);
+        // Dim the game - REMOVIDO, o overlay já escurece e o brightnessAdjust é para config do usuário
+        // brightnessAdjust.setBrightness(-0.5);
+    }
+
+    private void closeMenu() {
+        isMenuOpen = false;
+        menuOverlay.setVisible(false);
+        settingsBox.setVisible(false);
+        instructionsBox.setVisible(false);
+        surrenderBox.setVisible(false);
+        // Restore brightness - REMOVIDO
+        // brightnessAdjust.setBrightness(0.0); 
+    }
+
+    private void createMenuOverlay() {
+        menuOverlay = new VBox();
+        menuOverlay.setAlignment(Pos.CENTER);
+        menuOverlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.8);");
+        menuOverlay.setVisible(false);
+        menuOverlay.spacingProperty().bind(rootPane.heightProperty().divide(36));
+
+        Label title = new Label("PAUSE");
+        title.setTextFill(Color.BEIGE);
+        title.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(19.2).asString(), "px;"));
+
+        Button btnResume = createMenuButton("Resume");
+        Button btnInstructions = createMenuButton("Instructions");
+        Button btnSettings = createMenuButton("Settings");
+        Button btnSurrender = createMenuButton("Surrender");
+
+        btnResume.setOnAction(e -> closeMenu());
+        btnInstructions.setOnAction(e -> showInstructionsView());
+        btnSettings.setOnAction(e -> showSettingsView());
+        btnSurrender.setOnAction(e -> showSurrenderView());
+
+        menuOverlay.getChildren().addAll(title, btnResume, btnInstructions, btnSettings, btnSurrender);
+    }
+
+    private void createSettingsBox() {
+        settingsBox = new VBox();
+        settingsBox.setAlignment(Pos.CENTER);
+        settingsBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.9);");
+        settingsBox.setVisible(false);
+        settingsBox.spacingProperty().bind(rootPane.heightProperty().divide(36));
+
+        Label lblTitle = new Label("Settings");
+        lblTitle.setTextFill(Color.BEIGE);
+        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+
+        // Graphics - Brightness
+        VBox graphicsBox = new VBox(10);
+        graphicsBox.setAlignment(Pos.CENTER);
+        Label lblGraphics = new Label("Screen Brightness");
+        lblGraphics.setTextFill(Color.BEIGE);
+        lblGraphics.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
+        
+        Slider brightnessSlider = new Slider(-0.8, 0.2, 0.0); 
+        brightnessSlider.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.156));
+        brightnessSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+             brightnessAdjust.setBrightness(newVal.doubleValue());
+        });
+        
+        graphicsBox.getChildren().addAll(lblGraphics, brightnessSlider);
+
+        // Audio
+        VBox audioBox = new VBox(10);
+        audioBox.setAlignment(Pos.CENTER);
+        Label lblAudio = new Label("Overall Sound");
+        lblAudio.setTextFill(Color.BEIGE);
+        lblAudio.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
+        
+        Slider volumeSlider = new Slider(0, 100, 60); 
+        volumeSlider.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.156));
+        volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            AudioController.setBGMVolume(newVal.doubleValue() / 100.0);
+        });
+        
+        audioBox.getChildren().addAll(lblAudio, volumeSlider);
+
+        Button btnBack = createMenuButton("Back");
+        btnBack.setOnAction(e -> openMenu()); // Back to main pause menu
+
+        settingsBox.getChildren().addAll(lblTitle, graphicsBox, audioBox, btnBack);
+    }
+
+    private void createSurrenderBox() {
+        surrenderBox = new VBox();
+        surrenderBox.setAlignment(Pos.CENTER);
+        surrenderBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.9);");
+        surrenderBox.setVisible(false);
+        surrenderBox.spacingProperty().bind(rootPane.heightProperty().divide(36));
+
+        Label lblTitle = new Label("Surrender?");
+        lblTitle.setTextFill(Color.BEIGE);
+        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+
+        Label lblText = new Label("Are you sure you want to surrender and return to the main menu?");
+        lblText.setTextFill(Color.BEIGE);
+        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
+
+        HBox buttons = new HBox(20);
+        buttons.setAlignment(Pos.CENTER);
+
+        Button btnYes = createMenuButton("Yes");
+        Button btnNo = createMenuButton("No");
+
+        btnYes.setOnAction(e -> {
+            // Return to Main Menu
+            // gameWindow.close(); // Not needed if we just switch scene
+            AudioController.startBGM("dark_bg_edited.wav");
+            AudioController.setBGMVolume(0.6);
+            new MenuScreen().start(gameWindow);
+        });
+
+        btnNo.setOnAction(e -> openMenu());
+
+        buttons.getChildren().addAll(btnYes, btnNo);
+        surrenderBox.getChildren().addAll(lblTitle, lblText, buttons);
+    }
+
+    private void createInstructionsBox() {
+        instructionsBox = new VBox();
+        instructionsBox.setAlignment(Pos.CENTER);
+        instructionsBox.setStyle("-fx-background-color: rgba(0, 0, 0, 0.9);");
+        instructionsBox.setVisible(false);
+        instructionsBox.spacingProperty().bind(rootPane.heightProperty().divide(36));
+
+        instructionsContentBox = new VBox();
+        instructionsContentBox.setAlignment(Pos.CENTER);
+        instructionsContentBox.spacingProperty().bind(rootPane.heightProperty().divide(50));
+
+        instructionsBox.getChildren().add(instructionsContentBox);
+    }
+
+    private void showInstructionsView() {
+        menuOverlay.setVisible(false);
+        settingsBox.setVisible(false);
+        surrenderBox.setVisible(false);
+        instructionsBox.setVisible(true);
+        showInstructionsOverview();
+    }
+
+    private void showSettingsView() {
+        menuOverlay.setVisible(false);
+        settingsBox.setVisible(true);
+        surrenderBox.setVisible(false);
+        instructionsBox.setVisible(false);
+    }
+
+    private void showSurrenderView() {
+        menuOverlay.setVisible(false);
+        settingsBox.setVisible(false);
+        surrenderBox.setVisible(true);
+        instructionsBox.setVisible(false);
+    }
+
+    // --- Instructions Logic (Adapted from MenuScreen) ---
+    private void showInstructionsOverview() {
+        instructionsContentBox.getChildren().clear();
+
+        Label lblTitle = new Label("Overview");
+        lblTitle.setTextFill(Color.BEIGE);
+        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+
+        Label lblText = new Label(
+            "The game adopts a PvP (player versus player) format, differentiating itself from the original single-player experience. " +
+            "Our focus is on adapting Act 1, preserving the dark atmosphere and emphasizing strategic deck-building mechanics.\n\n" +
+            "Although we maintain characteristic elements — such as cost, damage, sigils, sacrifice, and bones — we opted for a 4x4 board, " +
+            "unlike the original 4x3. This change makes the game more balanced and dynamic for two players. " +
+            "Our goal is to provide an enjoyable, strategic, and engaging experience."
+        );
+        lblText.setTextFill(Color.BEIGE);
+        lblText.setWrapText(true);
+        lblText.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        lblText.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.6));
+        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(100).asString(), "px;"));
+
+        Button btnBoard = createMenuButton("Board Dynamics");
+        Button btnItems = createMenuButton("Items");
+        Button btnDecks = createMenuButton("Decks and Cards");
+        Button btnSigils = createMenuButton("Items and Sigils");
+        Button btnBalance = createMenuButton("Balance and Attack");
+        Button btnBack = createMenuButton("Back");
+
+        btnBoard.setOnAction(e -> showInstructionDetail("Board Dynamics", 
+            "The board has 4 columns by 4 rows, allowing for greater strategic depth.\n\n" +
+            "Both players can place cards behind others: " +
+            "If the front card dies, the card placed behind it automatically advances to the attack tile on its next turn."
+        ));
+
+        btnItems.setOnAction(e -> showInstructionDetail("Items", 
+            "Just like in the original game, items play a crucial role, capable of drastically changing the course of the game when used at the right moment.\n\n" +
+            "How to obtain items:\n" +
+            "There are three ways to acquire an item during the game:\n\n" +
+            "Starting item: " +
+            "Each player starts the game with a random item, usable at any time during their turn.\n\n" +
+            "Item sigil: " +
+            "Certain cards have a special sigil. " +
+            "When played, they grant a random item to the player who placed them.\n\n" +
+            "Critical situation: " +
+            "When a player reaches 1 life point, they automatically receive an additional item, adding more tension and the possibility of a comeback."
+        ));
+
+        btnDecks.setOnAction(e -> showInstructionDetail("Decks and Cards", 
+            "The game uses two distinct decks: " +
+            "Squirrel Deck and " +
+            "Creature Deck.\n\n" +
+            "Types of Cards:\n" +
+            "There are three main categories: " +
+            "Cards with no cost (such as squirrels and rabbits), " +
+            "Cards with a blood cost (require sacrifices to be played), and " +
+            "Cards with a bone cost (require a specific amount of accumulated bones).\n\n" +
+            "Sacrifices:\n" +
+            "To play cards that require blood: " +
+            "It is necessary to sacrifice already positioned cards. " +
+            "Most cards are worth 1 sacrifice point, except those with special sigils that increase this value.\n\n" +
+            "Bones:\n" +
+            "When losing a card (by death or sacrifice), the player gains 1 bone. " +
+            "Accumulated bones serve as a resource to summon specific cards."
+        ));
+
+        btnSigils.setOnAction(e -> showInstructionDetail("Items and Sigils", 
+            "Items are unique tools with special effects. " +
+            "Each item has a unique function capable of completely altering the course of the game.\n\n" +
+            "Sigils are special abilities that certain cards possess. They can provide effects such as: " +
+            "Multiple attack, " +
+            "Special movement, " +
+            "Flight, " +
+            "Among others."
+        ));
+
+        btnBalance.setOnAction(e -> showInstructionDetail("Balance and Attack", 
+            "The board is divided into two types of tiles: " +
+            "Placement tile and " +
+            "Attack tile.\n\n" +
+            "After a positioned round, the card automatically advances to the attack tile. " +
+            "Combat takes place in this space: " +
+            "If there is an enemy card in front, it receives the damage. " +
+            "Otherwise, the damage is applied directly to the opposing player.\n\n" +
+            "Balance System:\n" +
+            "Each player has a damage scale. " +
+            "If the scale accumulates 5 weights against you, one of your lives is lost. " +
+            "Each player has two lives. When a life is lost, the game is reset and the duel begins again. " +
+            "When both are lost, the player is defeated."
+        ));
+
+        btnBack.setOnAction(e -> openMenu());
+
+        VBox buttonsBox = new VBox(10);
+        buttonsBox.setAlignment(Pos.CENTER);
+        buttonsBox.getChildren().addAll(btnBoard, btnItems, btnDecks, btnSigils, btnBalance, btnBack);
+
+        instructionsContentBox.getChildren().addAll(lblTitle, lblText, buttonsBox);
+    }
+
+    private void showInstructionDetail(String title, String content) {
+        instructionsContentBox.getChildren().clear();
+
+        Label lblTitle = new Label(title);
+        lblTitle.setTextFill(Color.BEIGE);
+        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+
+        Label lblText = new Label(content);
+        lblText.setTextFill(Color.BEIGE);
+        lblText.setWrapText(true);
+        lblText.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        lblText.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.7));
+        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(100).asString(), "px;"));
+
+        Button btnBack = createMenuButton("Back");
+        btnBack.setOnAction(e -> showInstructionsOverview());
+
+        instructionsContentBox.getChildren().addAll(lblTitle, lblText, btnBack);
+    }
+
+    private Button createMenuButton(String text) {
+        Button btn = new Button(text);
+        btn.prefWidthProperty().bind(rootPane.widthProperty().multiply(0.156)); 
+        btn.prefHeightProperty().bind(rootPane.heightProperty().multiply(0.046)); 
+        
+        javafx.beans.binding.StringExpression fontSizeBinding = javafx.beans.binding.Bindings.concat("-fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;");
+        
+        String baseStyle = "-fx-background-color: #3a2d2d; -fx-text-fill: beige; -fx-font-weight: bold; -fx-background-radius: 5; -fx-border-color: #5a4d4d; -fx-border-radius: 5;";
+        String hoverStyle = "-fx-background-color: #4b3e3e; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-border-color: #6a5d5d; -fx-border-radius: 5;";
+        
+        btn.styleProperty().bind(javafx.beans.binding.Bindings.concat(baseStyle, fontSizeBinding));
+        
+        btn.setOnMouseEntered(e -> {
+            btn.styleProperty().unbind();
+            btn.styleProperty().bind(javafx.beans.binding.Bindings.concat(hoverStyle, fontSizeBinding));
+            AudioController.playSFX("clique.wav");
+        });
+        btn.setOnMouseExited(e -> {
+            btn.styleProperty().unbind();
+            btn.styleProperty().bind(javafx.beans.binding.Bindings.concat(baseStyle, fontSizeBinding));
+        });
+        btn.setOnMousePressed(e -> AudioController.playSFX("selecionar.wav"));
+        
+        return btn;
+    }
 }

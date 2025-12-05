@@ -26,6 +26,9 @@ public class MenuScreen {
     private VBox newGameBox;
     private VBox settingsBox;
     private ColorAdjust brightnessAdjust;
+    private VBox instructionsBox;
+    private VBox instructionsContentBox;
+    private Label title;
 
     public void start(Stage stage) {
         this.stage = stage;
@@ -50,7 +53,7 @@ public class MenuScreen {
         root.setEffect(brightnessAdjust);
 
         // Title
-        Label title = new Label("INSCRYPTION");
+        title = new Label("INSCRYPTION");
         title.setTextFill(Color.BEIGE);
         // Bind font size to root width (approx 1/19 of width)
         title.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(19.2).asString(), "px;"));
@@ -67,15 +70,17 @@ public class MenuScreen {
 
         Button btnNewGame = createMenuButton("Start a new game");
         Button btnCreateGame = createMenuButton("Create a new game");
+        Button btnInstructions = createMenuButton("Instructions");
         Button btnSettings = createMenuButton("Settings");
         Button btnExit = createMenuButton("Exit");
 
         btnNewGame.setOnAction(e -> showNewGameView());
         btnCreateGame.setOnAction(e -> {}); // Do nothing
+        btnInstructions.setOnAction(e -> showInstructionsView());
         btnSettings.setOnAction(e -> showSettingsView());
         btnExit.setOnAction(e -> stage.close());
 
-        menuBox.getChildren().addAll(btnNewGame, btnCreateGame, btnSettings, btnExit);
+        menuBox.getChildren().addAll(btnNewGame, btnCreateGame, btnInstructions, btnSettings, btnExit);
 
         // New Game View
         newGameBox = new VBox();
@@ -102,6 +107,9 @@ public class MenuScreen {
         btnBackNewGame.setOnAction(e -> showMainMenuView());
 
         newGameBox.getChildren().addAll(lblEnterNames, p1Name, p2Name, btnPlay, btnBackNewGame);
+
+        // Instructions View
+        createInstructionsView();
 
         // Settings View
         settingsBox = new VBox();
@@ -148,7 +156,142 @@ public class MenuScreen {
 
         settingsBox.getChildren().addAll(lblSettingsTitle, graphicsBox, audioBox, btnBackSettings);
 
-        root.getChildren().addAll(title, menuBox, newGameBox, settingsBox);
+        root.getChildren().addAll(title, menuBox, newGameBox, instructionsBox, settingsBox);
+    }
+
+    private void createInstructionsView() {
+        instructionsBox = new VBox();
+        instructionsBox.spacingProperty().bind(root.heightProperty().divide(36));
+        instructionsBox.setAlignment(Pos.CENTER);
+        instructionsBox.setVisible(false);
+
+        // Content Box for text/buttons
+        instructionsContentBox = new VBox();
+        instructionsContentBox.setAlignment(Pos.CENTER);
+        instructionsContentBox.spacingProperty().bind(root.heightProperty().divide(50));
+
+        // Initial Overview
+        showInstructionsOverview();
+
+        instructionsBox.getChildren().add(instructionsContentBox);
+    }
+
+    private void showInstructionsOverview() {
+        instructionsContentBox.getChildren().clear();
+
+        Label lblTitle = new Label("Overview");
+        lblTitle.setTextFill(Color.BEIGE);
+        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(48).asString(), "px;"));
+
+        Label lblText = new Label(
+            "The game adopts a PvP (player versus player) format, differentiating itself from the original single-player experience. " +
+            "Our focus is on adapting Act 1, preserving the dark atmosphere and emphasizing strategic deck-building mechanics.\n\n" +
+            "Although we maintain characteristic elements — such as cost, damage, sigils, sacrifice, and bones — we opted for a 4x4 board, " +
+            "unlike the original 4x3. This change makes the game more balanced and dynamic for two players. " +
+            "Our goal is to provide an enjoyable, strategic, and engaging experience."
+        );
+        lblText.setTextFill(Color.BEIGE);
+        lblText.setWrapText(true);
+        lblText.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        lblText.maxWidthProperty().bind(root.widthProperty().multiply(0.6));
+        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", root.widthProperty().divide(100).asString(), "px;"));
+
+        Button btnBoard = createMenuButton("Board Dynamics");
+        Button btnItems = createMenuButton("Items");
+        Button btnDecks = createMenuButton("Decks and Cards");
+        Button btnSigils = createMenuButton("Items and Sigils");
+        Button btnBalance = createMenuButton("Balance and Attack");
+        Button btnBack = createMenuButton("Back");
+
+        btnBoard.setOnAction(e -> showInstructionDetail("Board Dynamics", 
+            "The board has 4 columns by 4 rows, allowing for greater strategic depth.\n\n" +
+            "Both players can place cards behind others: " +
+            "If the front card dies, the card placed behind it automatically advances to the attack tile on its next turn."
+        ));
+
+        btnItems.setOnAction(e -> showInstructionDetail("Items", 
+            "Just like in the original game, items play a crucial role, capable of drastically changing the course of the game when used at the right moment.\n\n" +
+            "How to obtain items:\n" +
+            "There are three ways to acquire an item during the game:\n\n" +
+            "Starting item: " +
+            "Each player starts the game with a random item, usable at any time during their turn.\n\n" +
+            "Item sigil: " +
+            "Certain cards have a special sigil. " +
+            "When played, they grant a random item to the player who placed them.\n\n" +
+            "Critical situation: " +
+            "When a player reaches 1 life point, they automatically receive an additional item, adding more tension and the possibility of a comeback."
+        ));
+
+        btnDecks.setOnAction(e -> showInstructionDetail("Decks and Cards", 
+            "The game uses two distinct decks: " +
+            "Squirrel Deck and " +
+            "Creature Deck.\n\n" +
+            "Types of Cards:\n" +
+            "There are three main categories: " +
+            "Cards with no cost (such as squirrels and rabbits), " +
+            "Cards with a blood cost (require sacrifices to be played), and " +
+            "Cards with a bone cost (require a specific amount of accumulated bones).\n\n" +
+            "Sacrifices:\n" +
+            "To play cards that require blood: " +
+            "It is necessary to sacrifice already positioned cards. " +
+            "Most cards are worth 1 sacrifice point, except those with special sigils that increase this value.\n\n" +
+            "Bones:\n" +
+            "When losing a card (by death or sacrifice), the player gains 1 bone. " +
+            "Accumulated bones serve as a resource to summon specific cards."
+        ));
+
+        btnSigils.setOnAction(e -> showInstructionDetail("Items and Sigils", 
+            "Items are unique tools with special effects. " +
+            "Each item has a unique function capable of completely altering the course of the game.\n\n" +
+            "Sigils are special abilities that certain cards possess. They can provide effects such as: " +
+            "Multiple attack, " +
+            "Special movement, " +
+            "Flight, " +
+            "Among others."
+        ));
+
+        btnBalance.setOnAction(e -> showInstructionDetail("Balance and Attack", 
+            "The board is divided into two types of tiles: " +
+            "Placement tile and " +
+            "Attack tile.\n\n" +
+            "After a positioned round, the card automatically advances to the attack tile. " +
+            "Combat takes place in this space: " +
+            "If there is an enemy card in front, it receives the damage. " +
+            "Otherwise, the damage is applied directly to the opposing player.\n\n" +
+            "Balance System:\n" +
+            "Each player has a damage scale. " +
+            "If the scale accumulates 5 weights against you, one of your lives is lost. " +
+            "Each player has two lives. When a life is lost, the game is reset and the duel begins again. " +
+            "When both are lost, the player is defeated."
+        ));
+
+        btnBack.setOnAction(e -> showMainMenuView());
+
+        VBox buttonsBox = new VBox(10);
+        buttonsBox.setAlignment(Pos.CENTER);
+        buttonsBox.getChildren().addAll(btnBoard, btnItems, btnDecks, btnSigils, btnBalance, btnBack);
+
+        instructionsContentBox.getChildren().addAll(lblTitle, lblText, buttonsBox);
+    }
+
+    private void showInstructionDetail(String title, String content) {
+        instructionsContentBox.getChildren().clear();
+
+        Label lblTitle = new Label(title);
+        lblTitle.setTextFill(Color.BEIGE);
+        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(48).asString(), "px;"));
+
+        Label lblText = new Label(content);
+        lblText.setTextFill(Color.BEIGE);
+        lblText.setWrapText(true);
+        lblText.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        lblText.maxWidthProperty().bind(root.widthProperty().multiply(0.7));
+        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", root.widthProperty().divide(100).asString(), "px;"));
+
+        Button btnBack = createMenuButton("Back");
+        btnBack.setOnAction(e -> showInstructionsOverview());
+
+        instructionsContentBox.getChildren().addAll(lblTitle, lblText, btnBack);
     }
 
     private Button createMenuButton(String text) {
@@ -183,18 +326,45 @@ public class MenuScreen {
         menuBox.setVisible(false);
         newGameBox.setVisible(true);
         settingsBox.setVisible(false);
+        instructionsBox.setVisible(false);
     }
 
     private void showSettingsView() {
         menuBox.setVisible(false);
         newGameBox.setVisible(false);
         settingsBox.setVisible(true);
+        instructionsBox.setVisible(false);
+    }
+
+    private void showInstructionsView() {
+        menuBox.setVisible(false);
+        newGameBox.setVisible(false);
+        settingsBox.setVisible(false);
+        instructionsBox.setVisible(true);
+        showInstructionsOverview();
+        
+        // Move title to top left and reduce size
+        StackPane.setAlignment(title, Pos.TOP_LEFT);
+        title.translateYProperty().unbind();
+        title.setTranslateY(20);
+        title.setTranslateX(20);
+        title.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(40).asString(), "px;"));
     }
 
     private void showMainMenuView() {
         menuBox.setVisible(true);
         newGameBox.setVisible(false);
         settingsBox.setVisible(false);
+        instructionsBox.setVisible(false);
+        
+        resetTitlePosition();
+    }
+
+    private void resetTitlePosition() {
+        StackPane.setAlignment(title, Pos.CENTER);
+        title.setTranslateX(0);
+        title.translateYProperty().bind(root.heightProperty().multiply(-0.185));
+        title.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", root.widthProperty().divide(19.2).asString(), "px;"));
     }
 
     private void startGame(String p1, String p2) {
