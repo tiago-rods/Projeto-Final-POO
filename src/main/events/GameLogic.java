@@ -26,6 +26,11 @@ public class GameLogic {
     // Controle de compra de carta por turno
     private boolean hasDrawnThisTurn = false;
 
+    private boolean player1ReceivedItem = false;
+    private boolean player2ReceivedItem = false;
+
+    private boolean skipNextTurn = false;
+
     public GameLogic(Board board, Player player1, Player player2, Deck deckP1, Deck deckP2, EventBus eventBus) {
         this.board = board;
         this.player1 = player1;
@@ -51,13 +56,11 @@ public class GameLogic {
     // Inicializa ambos os jogadores
     public void initializeBothPlayers() {
         initializePlayerHand(player1, deckP1);
-        // Player 2 starts with 1 extra card (4 cards + 1 squirrel) for balance
-        deckP2.shuffle();
-        deckP2.draw(4, player2.getHand());
-        deckP2.drawSquirrel(player2.getHand());
-        System.out.println("Jogo inicializado!");
-        printGameState();
-        eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, currentPlayer));
+        initializePlayerHand(player2, deckP2);
+        // P2 ganha uma carta extra para balancear a vantagem do primeiro jogador
+        deckP2.draw(1, player2.getHand());
+        grantRandomItem(player1);
+        grantRandomItem(player2);
     }
 
     // Compra uma carta do deck (metodo antigo, genérico)
@@ -67,6 +70,33 @@ public class GameLogic {
             return true;
         }
         return false;
+    }
+
+    private void grantRandomItem(Player player) {
+        // Simple random item logic
+        java.util.List<items.Items> possibleItems = new java.util.ArrayList<>();
+        possibleItems.add(new items.BottledSquirrel());
+        possibleItems.add(new items.HoggyBank());
+        possibleItems.add(new items.Pliers());
+        possibleItems.add(new items.Hook());
+        possibleItems.add(new items.Scissors());
+        possibleItems.add(new items.HourGlass());
+
+        items.Items item = possibleItems.get(new java.util.Random().nextInt(possibleItems.size()));
+        if (player.addItem(item)) {
+            System.out.println("Player " + player.getName() + " received item: " + item.name());
+            // TODO: Publish ITEM_GAINED event
+        }
+    }
+
+    public void grantBones(Player player, int amount) {
+        player.addBones(amount);
+        // Publish event if needed, or rely on UI update
+        eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, player));
+    }
+
+    public void applyPliersDamage(Player player) {
+        updateGameScale(player, 1);
     }
 
     // ===========PLACE CARD
@@ -80,6 +110,7 @@ public class GameLogic {
         NOT_ENOUGH_BONES,
         SLOT_OCCUPIED, // já tem carta naquela coluna da sua linha de posicionamento
         REQUIRES_SACRIFICE_SELECTION // Novo: Indica à UI que o modo interativo é necessário
+
     }
 
     // helper de consulta para a UI saber se dá pra pagar custo de sangue
@@ -515,10 +546,104 @@ public class GameLogic {
 
         // muda player
         currentPlayer = (currentPlayer == player1) ? player2 : player1;
+
+        // Check if turn should be skipped
+        if (skipNextTurn) {
+            System.out.println("⏳ " + currentPlayer.getName() + "'s turn is skipped due to Hourglass!");
+            skipNextTurn = false; // Reset flag
+            // Switch back to the other player
+            currentPlayer = (currentPlayer == player1) ? player2 : player1;
+        }
+
         System.out.println("\n=== Turno de " + currentPlayer.getName() + " ===");
 
         hasDrawnThisTurn = false; // Reseta o controle de compra
         eventBus.publish(new Event(EventType.TURN_STARTED, currentPlayer));
+    }
+
+    public void triggerItemEffect(items.Items item, Player player, Object target) {
+        // Publish event so EventLogics can handle it (or UI can react)
+        // We pass the item as "data" or we could create a custom event field if needed.
+        // For now, let's pass the item as the data, and if we need target, we might
+        // need a custom object or just pass target as data?
+        // Event constructor: Event(EventType type, Player player, Card card, Object
+        // data)
+        // We can pass item as data. But what about target?
+        // If target is a Card, we can pass it as 'card'.
+
+        Card targetCard = (target instanceof Card) ? (Card) target : null;
+        // If target is not a card (e.g. null for Pliers), targetCard is null.
+        // We pass the Item object as the 'data'.
+
+        eventBus.publish(new Event(EventType.ITEM_USED, player, targetCard, item));
+    }
+
+    // === ITEM SPECIFIC METHODS ===
+
+    public void destroyCard(Card card) {
+        if (card != null && card.getPosLine() != -1 && card.getPosCol() != -1) {
+            board.removeCard(card.getPosLine(), card.getPosCol());
+            // Add to graveyard
+            Player owner = (card.getPosLine() >= 2) ? player1 : player2;
+            owner.getGraveyard().add(card);
+            eventBus.publish(new Event(EventType.CARD_DESTROYED, owner, card));
+        }
+    }
+
+    public void stealCard(Card card, Player thief) {
+        if (card == null || !(card instanceof CreatureCard))
+            return;
+
+        // Remove from current position
+        board.removeCard(card.getPosLine(), card.getPosCol());
+
+        // Determine target position for thief
+        int targetCol = card.getPosCol(); // Try to keep same column
+
+        // Determine lines
+        int attackLine = (thief.getOrder() == 1) ? 2 : 1;
+        int positioningLine = (thief.getOrder() == 1) ? 3 : 0;
+
+        // Check if attack line is occupied
+        Card existingCard = board.getCard(attackLine, targetCol);
+
+        boolean placed = false;
+        if (existingCard != null) {
+            // Case 2: Attack line occupied. Push back to positioning.
+            // Move existing card to positioning
+            boolean pushed = board.placeCardAt(existingCard, positioningLine, targetCol);
+            if (pushed) {
+                board.removeCard(attackLine, targetCol); // Remove from attack (it's now in positioning)
+                if (existingCard instanceof CreatureCard creature) {
+                    creature.setJustPlayed(true); // Pushed back card cannot move next round
+                }
+                // Now place stolen card in attack line
+                placed = board.placeCardAt(card, attackLine, targetCol);
+            } else {
+                // Positioning also full?
+                System.out.println("Positioning also full, cannot push back. Destroying stolen card.");
+                destroyCard(card);
+                return;
+            }
+        } else {
+            // Case 1 (or simple case): Attack line empty.
+            // Place directly in attack line.
+            placed = board.placeCardAt(card, attackLine, targetCol);
+        }
+
+        if (placed) {
+            if (card instanceof CreatureCard creature) {
+                creature.setJustPlayed(true); // Prevent moving/attacking in the same turn
+            }
+            eventBus.publish(new Event(EventType.CARD_MOVED, thief, card)); // It moved sides
+        } else {
+            System.out.println("Could not place stolen card, destroying it.");
+            destroyCard(card);
+        }
+    }
+
+    public void skipOpponentTurn() {
+        this.skipNextTurn = true;
     }
 
     /**
@@ -539,6 +664,12 @@ public class GameLogic {
                     "⚠ " + player2.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player2.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player2));
             scale.reset(); // volta para 0
+            // Reset item received flag for next life
+            player2ReceivedItem = false;
+        } else if (scale.getValue() >= 4 && !player2ReceivedItem) {
+            // Player 2 is about to lose, give item
+            grantRandomItem(player2);
+            player2ReceivedItem = true;
         }
 
         // Se a balança está pendendo para o lado do Player 2 (-5),
@@ -549,6 +680,12 @@ public class GameLogic {
                     "⚠ " + player1.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player1.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player1));
             scale.reset(); // volta para 0
+            // Reset item received flag for next life
+            player1ReceivedItem = false;
+        } else if (scale.getValue() <= -4 && !player1ReceivedItem) {
+            // Player 1 is about to lose, give item
+            grantRandomItem(player1);
+            player1ReceivedItem = true;
         }
     }
 
@@ -604,6 +741,19 @@ public class GameLogic {
         } else {
             return DrawResult.DECK_EMPTY;
         }
+    }
+
+    // NOVO: Compra esquilo via item (não gasta a compra do turno)
+    public boolean drawSquirrelFromItem(Player player) {
+        Deck currentDeck = (player == player1) ? deckP1 : deckP2;
+        int before = player.getHand().size();
+        Card drawn = currentDeck.drawSquirrel(player.getHand());
+
+        if (player.getHand().size() > before) {
+            eventBus.publish(new Event(EventType.CARD_DRAWN, player, drawn));
+            return true;
+        }
+        return false;
     }
 
     // Getters
