@@ -22,20 +22,50 @@ public class Player {
         this.order = order;
     }
 
-    public String getName() { return name; } // retorna o nome do jogador
-    public int getOrder() { return order; } // retorna o lado do jogador
+    public String getName() {
+        return name;
+    } // retorna o nome do jogador
 
-    public int getLives() { return lives; } // retorna o número de vidas do jogador
-    public void loseLife() { if (lives > 0) lives--; } // jogador perde uma vida
+    public int getOrder() {
+        return order;
+    } // retorna o lado do jogador
 
-    public int getBones() { return bones; } // retorna a quantidade de ossos do jogador
-    public void addBones(int amount) { bones += amount; } // jogador ganha ossos
-    public void spendBones(int amount) { bones -= amount; } // jogador gasta ossos
+    public int getLives() {
+        return lives;
+    } // retorna o número de vidas do jogador
 
-    public Deque<Card> getDeck() { return deck; } // retorna o baralho do jogador
-    public List<Card> getHand() { return hand; } // retorna as cartas na mão do jogador
-    public List<Card> getGraveyard() { return graveyard; } // retorna as cartas no cemitério do jogador
-    public List<Items> getItems() { return items; } // retorna os itens do jogador
+    public void loseLife() {
+        if (lives > 0)
+            lives--;
+    } // jogador perde uma vida
+
+    public int getBones() {
+        return bones;
+    } // retorna a quantidade de ossos do jogador
+
+    public void addBones(int amount) {
+        bones += amount;
+    } // jogador ganha ossos
+
+    public void spendBones(int amount) {
+        bones -= amount;
+    } // jogador gasta ossos
+
+    public Deque<Card> getDeck() {
+        return deck;
+    } // retorna o baralho do jogador
+
+    public List<Card> getHand() {
+        return hand;
+    } // retorna as cartas na mão do jogador
+
+    public List<Card> getGraveyard() {
+        return graveyard;
+    } // retorna as cartas no cemitério do jogador
+
+    public List<Items> getItems() {
+        return items;
+    } // retorna os itens do jogador
 
     public Card removeCardFromHand(int position) {
         if (position < 0 || position >= hand.size()) {
@@ -44,6 +74,16 @@ public class Player {
         return hand.remove(position); // retorna a carta já excluída da mão do jogador
     }
 
-    public boolean isAlive() { return lives > 0; } // verifica se o jogador ainda está vivo
+    public boolean addItem(Items item) {
+        if (items.size() < 3) {
+            items.add(item);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isAlive() {
+        return lives > 0;
+    } // verifica se o jogador ainda está vivo
 
 }

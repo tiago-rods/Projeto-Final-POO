@@ -2,6 +2,7 @@ package events;
 
 import cards.*;
 import sigils.*;
+import items.*;
 
 public class EventLogics {
 
@@ -48,6 +49,7 @@ public class EventLogics {
         eventBus.subscribe(EventType.PLAYER_ACTION, this::handlePlayerAction);
         eventBus.subscribe(EventType.GAME_STATE_CHANGED, this::handleGameStateChanged);
         eventBus.subscribe(EventType.GAME_ENDED, this::handleGameEnded);
+        eventBus.subscribe(EventType.ITEM_USED, this::handleItemUsed);
     }
 
     // === TURN HANDLERS ===
@@ -297,6 +299,46 @@ public class EventLogics {
 
         displayGameResults(winner);
         cleanupGameState();
+    }
+
+    private void handleItemUsed(Event event) {
+        Player player = event.getPlayer();
+        Object data = event.getData();
+
+        if (!(data instanceof Items))
+            return;
+
+        Items item = (Items) data;
+        Card target = event.getCard(); // Target card if any
+
+        System.out.println("🎒 " + player.getName() + " used item: " + item.name());
+
+        switch (item.name()) {
+            case "Pliers":
+                game.applyPliersDamage(player);
+                break;
+            case "Scissors":
+                if (target != null) {
+                    game.destroyCard(target);
+                }
+                break;
+            case "Hook":
+                if (target != null) {
+                    game.stealCard(target, player);
+                }
+                break;
+            case "HourGlass":
+                game.skipOpponentTurn();
+                break;
+            case "BottledSquirrel":
+                game.drawSquirrelFromItem(player);
+                break;
+        }
+
+        // Remove item from player inventory
+        player.getItems().remove(item);
+
+        eventBus.publish(new Event(EventType.GAME_STATE_CHANGED, player));
     }
 
     // === AUXILIARY METHODS ===
