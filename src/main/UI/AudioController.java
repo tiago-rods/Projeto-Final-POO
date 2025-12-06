@@ -117,6 +117,7 @@ public class AudioController {
 
     public static void resumeBGM() {
         if (backgroundMusicClip != null && !backgroundMusicClip.isRunning()) {
+            backgroundMusicClip.loop(Clip.LOOP_CONTINUOUSLY);
             backgroundMusicClip.start();
         }
     }
