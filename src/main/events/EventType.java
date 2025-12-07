@@ -34,5 +34,6 @@ public enum EventType {
     // Eventos de jogo
     PLAYER_ACTION,
     GAME_STATE_CHANGED,
-    GAME_ENDED
+    GAME_ENDED,
+    ITEM_USED
 }
