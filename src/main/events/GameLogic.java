@@ -663,6 +663,13 @@ public class GameLogic {
             System.out.println(
                     "⚠ " + player2.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player2.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player2));
+
+            if (!player2.isAlive()) {
+                System.out.println("💀 " + player2.getName() + " pereceu! " + player1.getName() + " venceu!");
+                eventBus.publish(new Event(EventType.GAME_ENDED, player1)); // player1 é o vencedor
+                return; // Encerra lógica por aqui
+            }
+
             scale.reset(); // volta para 0
             // Reset item received flag for next life
             player2ReceivedItem = false;
@@ -679,6 +686,13 @@ public class GameLogic {
             System.out.println(
                     "⚠ " + player1.getName() + " perdeu 1 vida pela balança! Vidas restantes: " + player1.getLives());
             eventBus.publish(new Event(EventType.LIFE_LOST, player1));
+
+            if (!player1.isAlive()) {
+                System.out.println("💀 " + player1.getName() + " pereceu! " + player2.getName() + " venceu!");
+                eventBus.publish(new Event(EventType.GAME_ENDED, player2)); // player2 é o vencedor
+                return;
+            }
+
             scale.reset(); // volta para 0
             // Reset item received flag for next life
             player1ReceivedItem = false;

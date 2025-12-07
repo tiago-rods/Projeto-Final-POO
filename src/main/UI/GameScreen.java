@@ -1,6 +1,5 @@
 package UI;
 
-
 import cards.Board;
 import cards.Card;
 import cards.CreatureCard;
@@ -71,12 +70,20 @@ public class GameScreen {
                 updateTurnLabelFromGame();
             });
         });
+
+        // Listen for Game Over
+        this.eventBus.subscribe(events.EventType.GAME_ENDED, e -> {
+            javafx.application.Platform.runLater(() -> {
+                AudioController.pauseBGM(); // Stop music on end
+                new EndScreen().start(this.gameWindow, e.getPlayer());
+            });
+        });
         AudioController.startBGM("bg_fireplace.wav");
         // Valores entre 0.0001 e 1 (usa log, por isso n pode ser 0)
         AudioController.setBGMVolume(0.4);
     }
 
-    //====== medidas padrao (agora dinâmicas)
+    // ====== medidas padrao (agora dinâmicas)
     private final DoubleProperty cardWidth = new SimpleDoubleProperty();
     private final DoubleProperty cardHeight = new SimpleDoubleProperty();
 
@@ -104,7 +111,6 @@ public class GameScreen {
     private HBox livesHUD;
     private Label livesValueLabel;
 
-
     // HUD de ossos
     private HBox bonesHUD;
     private Label bonesValueLabel;
@@ -128,9 +134,9 @@ public class GameScreen {
 
     // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
     private enum SacrificeState {
-        NORMAL,              // Estado padrão
-        AWAITING_SACRIFICE,  // Selecionou carta da mão, esperando sacrifícios
-        AWAITING_PLACEMENT   // Sacrifícios feitos, esperando local para colocar
+        NORMAL, // Estado padrão
+        AWAITING_SACRIFICE, // Selecionou carta da mão, esperando sacrifícios
+        AWAITING_PLACEMENT // Sacrifícios feitos, esperando local para colocar
     }
 
     private SacrificeState currentSacrificeState = SacrificeState.NORMAL;
@@ -173,7 +179,7 @@ public class GameScreen {
         // ---------------------------------------------------------------------
         rootPane = new StackPane();
         rootPane.setStyle("-fx-background-color: #1f1b1b;");
-        
+
         // Brightness effect global
         brightnessAdjust = new ColorAdjust();
         // rootPane.setEffect(brightnessAdjust); // REMOVIDO
@@ -184,9 +190,9 @@ public class GameScreen {
         gameLayout.setEffect(brightnessAdjust); // ADICIONADO
 
         // Bind dimensions to rootPane size
-        cardWidth.bind(rootPane.widthProperty().multiply(0.052)); 
-        cardHeight.bind(rootPane.heightProperty().multiply(0.138)); 
-        handSpacing.bind(rootPane.widthProperty().multiply(0.0026)); 
+        cardWidth.bind(rootPane.widthProperty().multiply(0.052));
+        cardHeight.bind(rootPane.heightProperty().multiply(0.138));
+        handSpacing.bind(rootPane.widthProperty().multiply(0.0026));
 
         // ====== PAINEL ESQUERDO (20%) ======
         VBox leftPanel = new VBox();
@@ -200,7 +206,10 @@ public class GameScreen {
         // indicador de turno
         turnLabel = new Label();
         turnLabel.setTextFill(Color.BEIGE);
-        turnLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(76.8).asString(), "px;"));
+        turnLabel.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(76.8).asString(), "px;"));
 
         // === HUD de ossos ===
         Image bonesImg = new Image(
@@ -212,7 +221,10 @@ public class GameScreen {
 
         bonesValueLabel = new Label("0");
         bonesValueLabel.setTextFill(Color.BEIGE);
-        bonesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(64).asString(), "px;"));
+        bonesValueLabel.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(64).asString(), "px;"));
 
         bonesHUD = new HBox(6); // espaço entre imagem e número
         bonesHUD.setAlignment(Pos.CENTER_LEFT);
@@ -228,7 +240,10 @@ public class GameScreen {
 
         livesValueLabel = new Label("0");
         livesValueLabel.setTextFill(Color.BEIGE);
-        livesValueLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(64).asString(), "px;"));
+        livesValueLabel.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Consolas'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(64).asString(), "px;"));
 
         livesHUD = new HBox(6); // espaço entre imagem e número
         livesHUD.setAlignment(Pos.CENTER_LEFT);
@@ -246,7 +261,6 @@ public class GameScreen {
                         "-fx-border-radius: 5;");
 
         // === BALANÇA VERTICAL NO MEIO DO PAINEL ESQUERDO ===
-
 
         scaleContainer = new StackPane();
         scaleContainer.minWidthProperty().bind(rootPane.widthProperty().multiply(0.041));
@@ -299,7 +313,6 @@ public class GameScreen {
             ticksBox.getChildren().add(row);
         }
 
-
         // Ajusta o tamanho da barra vertical conforme o container
         scaleContainer.heightProperty().addListener((obs, oldH, newH) -> {
             double h = newH.doubleValue() - 40; // padding top/bottom
@@ -318,7 +331,6 @@ public class GameScreen {
         StackPane.setAlignment(scaleLine, Pos.CENTER);
         StackPane.setAlignment(scaleMarker, Pos.CENTER);
 
-
         VBox scaleBox = new VBox(6);
         scaleBox.setAlignment(Pos.CENTER_RIGHT);
         scaleBox.getChildren().addAll(scaleContainer);
@@ -332,7 +344,9 @@ public class GameScreen {
         messageLabel = new Label();
         messageLabel.setTextFill(Color.web("#ffdd88"));
 
-        messageLabel.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(137).asString(), "px;"));
+        messageLabel.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ",
+                        rootPane.widthProperty().divide(137).asString(), "px;"));
 
         messageLabel.setWrapText(true);
         messageLabel.setVisible(false); // começa escondido
@@ -347,9 +361,8 @@ public class GameScreen {
         bellButton = new Button("Pass turn");
         bellButton.setMaxWidth(Double.MAX_VALUE);
 
-        
-        javafx.beans.binding.StringExpression bellFontSize = javafx.beans.binding.Bindings.concat("-fx-font-size: ", rootPane.widthProperty().divide(96).asString(), ";");
-        
+        javafx.beans.binding.StringExpression bellFontSize = javafx.beans.binding.Bindings.concat("-fx-font-size: ",
+                rootPane.widthProperty().divide(96).asString(), ";");
 
         String bellBaseStyle = "-fx-background-color: #4b2e2e; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14;";
         String bellHoverStyle = "-fx-background-color: #4b2020; -fx-text-fill: #f0e6d2; -fx-font-weight: bold; -fx-background-radius: 8; -fx-padding: 10 14;";
@@ -357,12 +370,12 @@ public class GameScreen {
         bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellBaseStyle, bellFontSize));
 
         bellButton.setOnMouseEntered(e -> {
-             bellButton.styleProperty().unbind();
-             bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellHoverStyle, bellFontSize));
+            bellButton.styleProperty().unbind();
+            bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellHoverStyle, bellFontSize));
         });
         bellButton.setOnMouseExited(e -> {
-             bellButton.styleProperty().unbind();
-             bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellBaseStyle, bellFontSize));
+            bellButton.styleProperty().unbind();
+            bellButton.styleProperty().bind(javafx.beans.binding.Bindings.concat(bellBaseStyle, bellFontSize));
         });
         bellButton.setOnMouseClicked(e -> {
             AudioController.playSFX("bell.wav");
@@ -442,8 +455,10 @@ public class GameScreen {
             boardArea.setPrefWidth(total * 0.80);
         });
 
-        // root.prefWidthProperty().bind(stage.widthProperty()); // Removed binding to stage
-        // root.prefHeightProperty().bind(stage.heightProperty()); // Removed binding to stage
+        // root.prefWidthProperty().bind(stage.widthProperty()); // Removed binding to
+        // stage
+        // root.prefHeightProperty().bind(stage.heightProperty()); // Removed binding to
+        // stage
 
         // ===== MENUS =====
         createMenuOverlay();
@@ -1413,7 +1428,7 @@ public class GameScreen {
         return deck;
     }
 
-    //=============================================================================
+    // =============================================================================
     private void passTurn() {
         System.out.println("Pass turn.");
 
@@ -1479,8 +1494,9 @@ public class GameScreen {
 
     private void returnToGame() {
         Scene scene = gameWindow.getScene();
-        // scene.setOnKeyPressed(null); // REMOVIDO: precisamos restaurar o listener do ESC
-        
+        // scene.setOnKeyPressed(null); // REMOVIDO: precisamos restaurar o listener do
+        // ESC
+
         // Restaurar listener do ESC
         scene.setOnKeyPressed((KeyEvent event) -> {
             if (event.getCode() == KeyCode.ESCAPE) {
@@ -1660,7 +1676,8 @@ public class GameScreen {
         settingsBox.setVisible(false);
         instructionsBox.setVisible(false);
         surrenderBox.setVisible(false);
-        // Dim the game - REMOVIDO, o overlay já escurece e o brightnessAdjust é para config do usuário
+        // Dim the game - REMOVIDO, o overlay já escurece e o brightnessAdjust é para
+        // config do usuário
         // brightnessAdjust.setBrightness(-0.5);
     }
 
@@ -1671,7 +1688,7 @@ public class GameScreen {
         instructionsBox.setVisible(false);
         surrenderBox.setVisible(false);
         // Restore brightness - REMOVIDO
-        // brightnessAdjust.setBrightness(0.0); 
+        // brightnessAdjust.setBrightness(0.0);
     }
 
     private void createMenuOverlay() {
@@ -1683,7 +1700,10 @@ public class GameScreen {
 
         Label title = new Label("PAUSE");
         title.setTextFill(Color.BEIGE);
-        title.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(19.2).asString(), "px;"));
+        title.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(19.2).asString(), "px;"));
 
         Button btnResume = createMenuButton("Resume");
         Button btnInstructions = createMenuButton("Instructions");
@@ -1707,21 +1727,25 @@ public class GameScreen {
 
         Label lblTitle = new Label("Settings");
         lblTitle.setTextFill(Color.BEIGE);
-        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+        lblTitle.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(48).asString(), "px;"));
 
         // Graphics - Brightness
         VBox graphicsBox = new VBox(10);
         graphicsBox.setAlignment(Pos.CENTER);
         Label lblGraphics = new Label("Screen Brightness");
         lblGraphics.setTextFill(Color.BEIGE);
-        lblGraphics.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
-        
-        Slider brightnessSlider = new Slider(-0.8, 0.2, 0.0); 
+        lblGraphics.styleProperty().bind(javafx.beans.binding.Bindings.concat(
+                "-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
+
+        Slider brightnessSlider = new Slider(-0.8, 0.2, 0.0);
         brightnessSlider.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.156));
         brightnessSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
-             brightnessAdjust.setBrightness(newVal.doubleValue());
+            brightnessAdjust.setBrightness(newVal.doubleValue());
         });
-        
+
         graphicsBox.getChildren().addAll(lblGraphics, brightnessSlider);
 
         // Audio
@@ -1729,14 +1753,15 @@ public class GameScreen {
         audioBox.setAlignment(Pos.CENTER);
         Label lblAudio = new Label("Overall Sound");
         lblAudio.setTextFill(Color.BEIGE);
-        lblAudio.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
-        
-        Slider volumeSlider = new Slider(0, 100, 60); 
+        lblAudio.styleProperty().bind(javafx.beans.binding.Bindings.concat(
+                "-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
+
+        Slider volumeSlider = new Slider(0, 100, 60);
         volumeSlider.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.156));
         volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             AudioController.setBGMVolume(newVal.doubleValue() / 100.0);
         });
-        
+
         audioBox.getChildren().addAll(lblAudio, volumeSlider);
 
         Button btnBack = createMenuButton("Back");
@@ -1754,11 +1779,15 @@ public class GameScreen {
 
         Label lblTitle = new Label("Surrender?");
         lblTitle.setTextFill(Color.BEIGE);
-        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+        lblTitle.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(48).asString(), "px;"));
 
         Label lblText = new Label("Are you sure you want to surrender and return to the main menu?");
         lblText.setTextFill(Color.BEIGE);
-        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
+        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat(
+                "-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;"));
 
         HBox buttons = new HBox(20);
         buttons.setAlignment(Pos.CENTER);
@@ -1822,20 +1851,28 @@ public class GameScreen {
 
         Label lblTitle = new Label("Overview");
         lblTitle.setTextFill(Color.BEIGE);
-        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+        lblTitle.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(48).asString(), "px;"));
 
         Label lblText = new Label(
-            "The game adopts a PvP (player versus player) format, differentiating itself from the original single-player experience. " +
-            "Our focus is on adapting Act 1, preserving the dark atmosphere and emphasizing strategic deck-building mechanics.\n\n" +
-            "Although we maintain characteristic elements — such as cost, damage, sigils, sacrifice, and bones — we opted for a 4x4 board, " +
-            "unlike the original 4x3. This change makes the game more balanced and dynamic for two players. " +
-            "Our goal is to provide an enjoyable, strategic, and engaging experience."
-        );
+                "The game adopts a PvP (player versus player) format, differentiating itself from the original single-player experience. "
+                        +
+                        "Our focus is on adapting Act 1, preserving the dark atmosphere and emphasizing strategic deck-building mechanics.\n\n"
+                        +
+                        "Although we maintain characteristic elements — such as cost, damage, sigils, sacrifice, and bones — we opted for a 4x4 board, "
+                        +
+                        "unlike the original 4x3. This change makes the game more balanced and dynamic for two players. "
+                        +
+                        "Our goal is to provide an enjoyable, strategic, and engaging experience.");
         lblText.setTextFill(Color.BEIGE);
         lblText.setWrapText(true);
         lblText.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
         lblText.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.6));
-        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(100).asString(), "px;"));
+        lblText.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ",
+                        rootPane.widthProperty().divide(100).asString(), "px;"));
 
         Button btnBoard = createMenuButton("Board Dynamics");
         Button btnItems = createMenuButton("Items");
@@ -1844,67 +1881,65 @@ public class GameScreen {
         Button btnBalance = createMenuButton("Balance and Attack");
         Button btnBack = createMenuButton("Back");
 
-        btnBoard.setOnAction(e -> showInstructionDetail("Board Dynamics", 
-            "The board has 4 columns by 4 rows, allowing for greater strategic depth.\n\n" +
-            "Both players can place cards behind others: " +
-            "If the front card dies, the card placed behind it automatically advances to the attack tile on its next turn."
-        ));
+        btnBoard.setOnAction(e -> showInstructionDetail("Board Dynamics",
+                "The board has 4 columns by 4 rows, allowing for greater strategic depth.\n\n" +
+                        "Both players can place cards behind others: " +
+                        "If the front card dies, the card placed behind it automatically advances to the attack tile on its next turn."));
 
-        btnItems.setOnAction(e -> showInstructionDetail("Items", 
-            "Just like in the original game, items play a crucial role, capable of drastically changing the course of the game when used at the right moment.\n\n" +
-            "How to obtain items:\n" +
-            "There are three ways to acquire an item during the game:\n\n" +
-            "Starting item: " +
-            "Each player starts the game with a random item, usable at any time during their turn.\n\n" +
-            "Item sigil: " +
-            "Certain cards have a special sigil. " +
-            "When played, they grant a random item to the player who placed them.\n\n" +
-            "Critical situation: " +
-            "When a player reaches 1 life point, they automatically receive an additional item, adding more tension and the possibility of a comeback."
-        ));
+        btnItems.setOnAction(e -> showInstructionDetail("Items",
+                "Just like in the original game, items play a crucial role, capable of drastically changing the course of the game when used at the right moment.\n\n"
+                        +
+                        "How to obtain items:\n" +
+                        "There are three ways to acquire an item during the game:\n\n" +
+                        "Starting item: " +
+                        "Each player starts the game with a random item, usable at any time during their turn.\n\n" +
+                        "Item sigil: " +
+                        "Certain cards have a special sigil. " +
+                        "When played, they grant a random item to the player who placed them.\n\n" +
+                        "Critical situation: " +
+                        "When a player reaches 1 life point, they automatically receive an additional item, adding more tension and the possibility of a comeback."));
 
-        btnDecks.setOnAction(e -> showInstructionDetail("Decks and Cards", 
-            "The game uses two distinct decks: " +
-            "Squirrel Deck and " +
-            "Creature Deck.\n\n" +
-            "Types of Cards:\n" +
-            "There are three main categories: " +
-            "Cards with no cost (such as squirrels and rabbits), " +
-            "Cards with a blood cost (require sacrifices to be played), and " +
-            "Cards with a bone cost (require a specific amount of accumulated bones).\n\n" +
-            "Sacrifices:\n" +
-            "To play cards that require blood: " +
-            "It is necessary to sacrifice already positioned cards. " +
-            "Most cards are worth 1 sacrifice point, except those with special sigils that increase this value.\n\n" +
-            "Bones:\n" +
-            "When losing a card (by death or sacrifice), the player gains 1 bone. " +
-            "Accumulated bones serve as a resource to summon specific cards."
-        ));
+        btnDecks.setOnAction(e -> showInstructionDetail("Decks and Cards",
+                "The game uses two distinct decks: " +
+                        "Squirrel Deck and " +
+                        "Creature Deck.\n\n" +
+                        "Types of Cards:\n" +
+                        "There are three main categories: " +
+                        "Cards with no cost (such as squirrels and rabbits), " +
+                        "Cards with a blood cost (require sacrifices to be played), and " +
+                        "Cards with a bone cost (require a specific amount of accumulated bones).\n\n" +
+                        "Sacrifices:\n" +
+                        "To play cards that require blood: " +
+                        "It is necessary to sacrifice already positioned cards. " +
+                        "Most cards are worth 1 sacrifice point, except those with special sigils that increase this value.\n\n"
+                        +
+                        "Bones:\n" +
+                        "When losing a card (by death or sacrifice), the player gains 1 bone. " +
+                        "Accumulated bones serve as a resource to summon specific cards."));
 
-        btnSigils.setOnAction(e -> showInstructionDetail("Items and Sigils", 
-            "Items are unique tools with special effects. " +
-            "Each item has a unique function capable of completely altering the course of the game.\n\n" +
-            "Sigils are special abilities that certain cards possess. They can provide effects such as: " +
-            "Multiple attack, " +
-            "Special movement, " +
-            "Flight, " +
-            "Among others."
-        ));
+        btnSigils.setOnAction(e -> showInstructionDetail("Items and Sigils",
+                "Items are unique tools with special effects. " +
+                        "Each item has a unique function capable of completely altering the course of the game.\n\n" +
+                        "Sigils are special abilities that certain cards possess. They can provide effects such as: " +
+                        "Multiple attack, " +
+                        "Special movement, " +
+                        "Flight, " +
+                        "Among others."));
 
-        btnBalance.setOnAction(e -> showInstructionDetail("Balance and Attack", 
-            "The board is divided into two types of tiles: " +
-            "Placement tile and " +
-            "Attack tile.\n\n" +
-            "After a positioned round, the card automatically advances to the attack tile. " +
-            "Combat takes place in this space: " +
-            "If there is an enemy card in front, it receives the damage. " +
-            "Otherwise, the damage is applied directly to the opposing player.\n\n" +
-            "Balance System:\n" +
-            "Each player has a damage scale. " +
-            "If the scale accumulates 5 weights against you, one of your lives is lost. " +
-            "Each player has two lives. When a life is lost, the game is reset and the duel begins again. " +
-            "When both are lost, the player is defeated."
-        ));
+        btnBalance.setOnAction(e -> showInstructionDetail("Balance and Attack",
+                "The board is divided into two types of tiles: " +
+                        "Placement tile and " +
+                        "Attack tile.\n\n" +
+                        "After a positioned round, the card automatically advances to the attack tile. " +
+                        "Combat takes place in this space: " +
+                        "If there is an enemy card in front, it receives the damage. " +
+                        "Otherwise, the damage is applied directly to the opposing player.\n\n" +
+                        "Balance System:\n" +
+                        "Each player has a damage scale. " +
+                        "If the scale accumulates 5 weights against you, one of your lives is lost. " +
+                        "Each player has two lives. When a life is lost, the game is reset and the duel begins again. "
+                        +
+                        "When both are lost, the player is defeated."));
 
         btnBack.setOnAction(e -> openMenu());
 
@@ -1920,14 +1955,19 @@ public class GameScreen {
 
         Label lblTitle = new Label(title);
         lblTitle.setTextFill(Color.BEIGE);
-        lblTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ", rootPane.widthProperty().divide(48).asString(), "px;"));
+        lblTitle.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat(
+                        "-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ",
+                        rootPane.widthProperty().divide(48).asString(), "px;"));
 
         Label lblText = new Label(content);
         lblText.setTextFill(Color.BEIGE);
         lblText.setWrapText(true);
         lblText.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
         lblText.maxWidthProperty().bind(rootPane.widthProperty().multiply(0.7));
-        lblText.styleProperty().bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ", rootPane.widthProperty().divide(100).asString(), "px;"));
+        lblText.styleProperty()
+                .bind(javafx.beans.binding.Bindings.concat("-fx-font-family: 'Consolas'; -fx-font-size: ",
+                        rootPane.widthProperty().divide(100).asString(), "px;"));
 
         Button btnBack = createMenuButton("Back");
         btnBack.setOnAction(e -> showInstructionsOverview());
@@ -1937,16 +1977,17 @@ public class GameScreen {
 
     private Button createMenuButton(String text) {
         Button btn = new Button(text);
-        btn.prefWidthProperty().bind(rootPane.widthProperty().multiply(0.156)); 
-        btn.prefHeightProperty().bind(rootPane.heightProperty().multiply(0.046)); 
-        
-        javafx.beans.binding.StringExpression fontSizeBinding = javafx.beans.binding.Bindings.concat("-fx-font-size: ", rootPane.widthProperty().divide(96).asString(), "px;");
-        
+        btn.prefWidthProperty().bind(rootPane.widthProperty().multiply(0.156));
+        btn.prefHeightProperty().bind(rootPane.heightProperty().multiply(0.046));
+
+        javafx.beans.binding.StringExpression fontSizeBinding = javafx.beans.binding.Bindings.concat("-fx-font-size: ",
+                rootPane.widthProperty().divide(96).asString(), "px;");
+
         String baseStyle = "-fx-background-color: #3a2d2d; -fx-text-fill: beige; -fx-font-weight: bold; -fx-background-radius: 5; -fx-border-color: #5a4d4d; -fx-border-radius: 5;";
         String hoverStyle = "-fx-background-color: #4b3e3e; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-border-color: #6a5d5d; -fx-border-radius: 5;";
-        
+
         btn.styleProperty().bind(javafx.beans.binding.Bindings.concat(baseStyle, fontSizeBinding));
-        
+
         btn.setOnMouseEntered(e -> {
             btn.styleProperty().unbind();
             btn.styleProperty().bind(javafx.beans.binding.Bindings.concat(hoverStyle, fontSizeBinding));
@@ -1957,7 +1998,7 @@ public class GameScreen {
             btn.styleProperty().bind(javafx.beans.binding.Bindings.concat(baseStyle, fontSizeBinding));
         });
         btn.setOnMousePressed(e -> AudioController.playSFX("selecionar.wav"));
-        
+
         return btn;
     }
 }
