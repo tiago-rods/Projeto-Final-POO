@@ -333,6 +333,9 @@ public class EventLogics {
             case "BottledSquirrel":
                 game.drawSquirrelFromItem(player);
                 break;
+            case "HoggyBank":
+                game.grantBones(player, 4);
+                break;
         }
 
         // Remove item from player inventory
