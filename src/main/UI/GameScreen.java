@@ -5,6 +5,7 @@ import cards.Card;
 import cards.CreatureCard;
 import cards.Player;
 import events.EventBus;
+import events.EventType;
 import events.GameLogic;
 import javafx.animation.FadeTransition;
 import javafx.scene.Parent;
@@ -27,7 +28,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.geometry.VPos;
 import javafx.animation.Interpolator;
@@ -42,7 +42,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.control.Slider;
 import javafx.scene.effect.ColorAdjust;
-import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 
 public class GameScreen {
@@ -69,6 +68,22 @@ public class GameScreen {
                 refreshLivesHUD();
                 refreshScaleFromGame();
                 updateTurnLabelFromGame();
+            });
+        });
+
+        this.eventBus.subscribe(EventType.LIFE_LOST, e -> {
+            javafx.application.Platform.runLater(() -> {
+                Player attackedPlayer;
+                // Se o jogador 1 estiver atacando, significa que o jogador2 perdeu a vida
+                if(game.getCurrentPlayer() == game.getPlayer1()) {
+                    attackedPlayer = game.getPlayer2();
+                } else {
+                    attackedPlayer = game.getPlayer1();
+                }
+
+                // Apenas ARMAZENA a informação para usar depois no passTurn
+                this.lifeLostTriggered = true;
+                this.playerWhoLostLife = attackedPlayer;
             });
         });
 
@@ -466,8 +481,9 @@ public class GameScreen {
         createSettingsBox();
         createInstructionsBox();
         createSurrenderBox();
+        createLifeLostOverlay();
 
-        rootPane.getChildren().addAll(gameLayout, menuOverlay, settingsBox, instructionsBox, surrenderBox);
+        rootPane.getChildren().addAll(gameLayout, menuOverlay, settingsBox, instructionsBox, surrenderBox, lifeLostOverlay);
 
         // ===== TROCA DE CONTEÚDO DA CENA =====
         Scene scene = stage.getScene();
@@ -1452,6 +1468,108 @@ public class GameScreen {
         return deck;
     }
 
+    // Variáveis para a tela de Vida Perdida
+    private VBox lifeLostOverlay;
+    private Label lifeLostTitle;
+    private Label lifeLostSubtitle;
+
+    // Variáveis para controle de fluxo de vida perdida
+    private boolean lifeLostTriggered = false; // Flag para saber se o evento ocorreu
+    private Player playerWhoLostLife = null;   // Quem perdeu
+    private Runnable onLifeLostClosed = null;  // Ação ao fechar a tela
+
+    private void createLifeLostOverlay() {
+        lifeLostOverlay = new VBox();
+        lifeLostOverlay.setAlignment(Pos.CENTER);
+        // Fundo escuro levemente avermelhado para indicar dano
+        lifeLostOverlay.setStyle("-fx-background-color: rgba(20, 0, 0, 0.95);");
+        lifeLostOverlay.setVisible(false);
+        lifeLostOverlay.setSpacing(20);
+
+        // Título dramático
+        lifeLostTitle = new Label("A CANDLE IS EXTINGUISHED");
+        lifeLostTitle.setTextFill(Color.web("#d44e4e")); // Vermelho desbotado
+        lifeLostTitle.styleProperty().bind(javafx.beans.binding.Bindings.concat(
+                "-fx-font-family: 'Serif'; -fx-font-weight: bold; -fx-font-size: ",
+                rootPane.widthProperty().divide(25).asString(), "px;"
+        ));
+
+        // Subtítulo
+        lifeLostSubtitle = new Label("One life remains...");
+        lifeLostSubtitle.setTextFill(Color.BEIGE);
+        lifeLostSubtitle.styleProperty().bind(javafx.beans.binding.Bindings.concat(
+                "-fx-font-family: 'Consolas'; -fx-font-size: ",
+                rootPane.widthProperty().divide(60).asString(), "px;"
+        ));
+
+
+        Label continueText = new Label("[ CLICK TO CONTINUE ]");
+        continueText.setTextFill(Color.GRAY);
+        continueText.styleProperty().bind(javafx.beans.binding.Bindings.concat(
+                "-fx-font-family: 'Consolas'; -fx-font-size: ",
+                rootPane.widthProperty().divide(80).asString(), "px;"
+        ));
+
+        // Animação de piscar para o texto de continuar
+        FadeTransition fade = new FadeTransition(Duration.seconds(1.0), continueText);
+        fade.setFromValue(1.0);
+        fade.setToValue(0.4);
+        fade.setCycleCount(FadeTransition.INDEFINITE);
+        fade.setAutoReverse(true);
+        fade.play();
+
+        // Adiciona componentes (Adicione skullIcon aqui se criar)
+        lifeLostOverlay.getChildren().addAll(lifeLostTitle, lifeLostSubtitle, continueText);
+
+        // Evento para fechar a tela ao clicar
+        lifeLostOverlay.setOnMouseClicked(e -> closeLifeLostScreen());
+
+        // Também permite fechar apertando Espaço ou Enter se a tela tiver foco
+        lifeLostOverlay.setFocusTraversable(true);
+        lifeLostOverlay.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.SPACE || e.getCode() == KeyCode.ENTER) {
+                closeLifeLostScreen();
+            }
+        });
+    }
+
+    private void showLifeLostScreen(Player attackedPlayer, Runnable action) {
+        this.onLifeLostClosed = action; // Guarda a ação (ir para WaitingScreen)
+
+        // Atualiza textos
+        lifeLostTitle.setText(attackedPlayer.getName().toUpperCase() + " LOST A LIFE");
+
+        if (attackedPlayer.getLives() == 1) {
+            lifeLostSubtitle.setText("The flame flickers... Only 1 life remains.");
+        } else {
+            lifeLostSubtitle.setText(attackedPlayer.getLives() + " lives remain.");
+        }
+
+        lifeLostOverlay.setVisible(true);
+        lifeLostOverlay.toFront();
+        lifeLostOverlay.requestFocus();
+
+         AudioController.playSFX("candle_blow.wav");
+    }
+
+    private void closeLifeLostScreen() {
+        FadeTransition fadeOut = new FadeTransition(Duration.seconds(0.5), lifeLostOverlay);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+        fadeOut.setOnFinished(e -> {
+            lifeLostOverlay.setVisible(false);
+            lifeLostOverlay.setOpacity(1.0);
+
+            // troca o turno
+            if (onLifeLostClosed != null) {
+                onLifeLostClosed.run();
+                onLifeLostClosed = null; // Limpa para não repetir
+            }
+        });
+        fadeOut.play();
+    }
+
+
     // =============================================================================
     private void passTurn() {
         System.out.println("Pass turn.");
@@ -1471,6 +1589,10 @@ public class GameScreen {
 
         clearSelection();
 
+        // Reseta as flags antes de calcular o turno
+        this.lifeLostTriggered = false;
+        this.playerWhoLostLife = null;
+
         // === ETAPA 1: EXECUTAR A LÓGICA DE ATAQUE ===
         game.executeEndOfTurn();
 
@@ -1479,41 +1601,52 @@ public class GameScreen {
         refreshScaleFromGame(); // balança reflete o dano antes do flip
 
         // === ETAPA 3: CRIAR A PAUSA ===
-        PauseTransition delay = new PauseTransition(Duration.seconds(1.5));
+        PauseTransition delay = new PauseTransition(Duration.seconds(2.0));
 
         // === ETAPA 4: DEFINIR O QUE ACONTECE DEPOIS DA PAUSA ===
         delay.setOnFinished(event -> {
-            // === ETAPA 5: FINALIZAR A TROCA DE TURNO ===
-            game.switchToNextPlayer();
-
-            // 2) Alterna orientação visual
-            flippedView = !flippedView;
-
-            // 3) Atualiza UI com base no estado REAL
-            updateTurnLabelFromGame();
-            refreshHandsFromGame();
-            refreshBoardFromGame();
-            refreshBonesHUD();
-            refreshItemsHUD(); // Added to update items for the new player
-            refreshScaleFromGame(); // apenas inverte visualmente para o jogador da vez
-            refreshLivesHUD();
-            clearSelection();
-
-            // 4) Cria o layout da WaitingScreen para o PRÓXIMO jogador
-            String nextPlayer = game.getCurrentPlayer().getName();
-            WaitingScreen waiting = new WaitingScreen();
-            Parent waitingRoot = waiting.createRoot(nextPlayer);
-
-            // 5) Troca só o root da MESMA Scene
-            Scene scene = gameWindow.getScene();
-            scene.setRoot(waitingRoot);
-
-            // 6) Listeners para voltar ao jogo
-            scene.setOnKeyPressed(e2 -> returnToGame());
+            // 5. Verifica se o evento de vida perdida foi disparado durante o executeEndOfTurn
+            if (lifeLostTriggered && playerWhoLostLife != null) {
+                // Se SIM: Mostra a tela de perda de vida.
+                // Quando fechar, executa finalizeTurnSwitch.
+                showLifeLostScreen(playerWhoLostLife, this::finalizeTurnSwitch);
+            } else {
+                // Se NÃO: Vai direto para a troca de turno padrão.
+                finalizeTurnSwitch();
+            }
         });
 
-        // === ETAPA 6: INICIAR A PAUSA ===
         delay.play();
+    }
+
+    //  Fazer a troca efetiva de tela/jogador
+    private void finalizeTurnSwitch() {
+        // 1. Troca o jogador na lógica do jogo
+        game.switchToNextPlayer();
+
+        // 2. Alterna orientação visual
+        flippedView = !flippedView;
+
+        // 3. Atualiza UI com base no novo jogador
+        updateTurnLabelFromGame();
+        refreshHandsFromGame();
+        refreshBoardFromGame();
+        refreshBonesHUD();
+        refreshItemsHUD();
+        refreshScaleFromGame();
+        refreshLivesHUD();
+        clearSelection();
+
+        // 4. Configura a WaitingScreen (Tela de "Passe o computador")
+        String nextPlayer = game.getCurrentPlayer().getName();
+        WaitingScreen waiting = new WaitingScreen();
+        Parent waitingRoot = waiting.createRoot(nextPlayer);
+
+        Scene scene = gameWindow.getScene();
+        scene.setRoot(waitingRoot);
+
+        // 5. Configura retorno ao pressionar tecla
+        scene.setOnKeyPressed(e2 -> returnToGame());
     }
 
     private void returnToGame() {
