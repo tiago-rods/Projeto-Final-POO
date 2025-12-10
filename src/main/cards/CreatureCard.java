@@ -59,7 +59,31 @@ public final class CreatureCard extends Card {
         this.justPlayed = justPlayed;
     }
 
+    public boolean hasSigil(String sigilName) {
+        for (Sigil s : sigils) {
+            if (s.name().equalsIgnoreCase(sigilName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void takeDamage(int dmg) {
         this.health -= dmg;
+    }
+
+    // Buffs
+    public void buffAttack(int amount) {
+        this.attack += amount;
+    }
+
+    public void buffHealth(int amount) {
+        this.health += amount;
+    }
+
+    public void evolve(String newName) {
+        // Maybe change name or image too?
+        // for now just name prefix
+        // this.name = "Elder " + this.name; // name is final? Let's check Card.java
     }
 }

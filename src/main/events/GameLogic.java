@@ -92,8 +92,7 @@ public class GameLogic {
         return available >= bloodCost;
     }
 
-    // Este metodo agora lida APENAS com cartas de custo 0 (sangue) ou custo de
-    // ossos.
+    // Este metodo agora lida APENAS com cartas de custo 0 (sangue) ou custo de ossos.
     // Se a carta tiver custo de sangue, ele retorna REQUIRES_SACRIFICE_SELECTION.
     public PlaceCardResult tryPlaceCardFromCurrentPlayerHand(int handIndex, int targetLine, int targetCol) {
 
@@ -382,12 +381,11 @@ public class GameLogic {
 
         // Remove criaturas mortas após todos os ataques
         cleanupDeadCreatures();
+
+        eventBus.publish(new Event(EventType.COMBAT_RESOLVED, attacker));
     }
 
     // Realiza o ataque de uma criatura específica
-    // ANTES: private void performAttack(CreatureCard attacker, Player defender, int
-    // column)
-    // AGORA: também recebe o Player atacante
     private void performAttack(CreatureCard attacker, Player attackerPlayer, Player defender, int column) {
         int attackerLine = attacker.getPosLine();
         int attackerCol = attacker.getPosCol();
@@ -395,8 +393,9 @@ public class GameLogic {
         eventBus.publish(new Event(EventType.ATTACK_DECLARED, attackerPlayer, attacker));
 
         // Verifica se tem sigilo de voo (FlySigil)
-        boolean hasFlying = attacker.getSigils().stream()
-                .anyMatch(s -> s.getClass().getSimpleName().equals("FlySigil"));
+        boolean hasFlying = attacker.hasSigil("Fly");
+
+        // verifica outros tipos de sigilo (talvez)
 
         // Vamos calcular as linhas opostas manualmente
         int oppositeAttackLine;
@@ -436,13 +435,20 @@ public class GameLogic {
         System.out.println("Combate: " + attacker.getName() + " (" + attacker.getAttack() + "/" + attacker.getHealth() +
                 ") vs " + defender.getName() + " (" + defender.getAttack() + "/" + defender.getHealth() + ")");
 
-        // Apenas o atacante causa dano ao defensor
-        defender.takeDamage(attacker.getAttack());
+        // Check for Touch of Death (Attacker has it)
+        if (attacker.hasSigil("Touch of Death")) {
+             System.out.println("☠️ Touch of Death! " + defender.getName() + " dies instantly.");
+             defender.takeDamage(defender.getHealth()); // Deal exact lethal damage
+        } else {
+             // Normal damage
+             defender.takeDamage(attacker.getAttack());
+        }
 
         // Atualiza ícones de vida
         defender.changeLifeIcon(Math.max(0, defender.getHealth()));
-        // Assumindo player2 como defensor aqui, mas idealmente passaria o dono
-        eventBus.publish(new Event(EventType.CREATURE_DAMAGED, player2, defender, attacker.getAttack()));
+        Player defenderPlayer = (currentPlayer == player1) ? player2 : player1;
+        // Precisou criar essa nova classe de ataque para verificar que tipo de ataque esta acontecendo (caso tenha algm sigil)
+        eventBus.publish(new Event(EventType.CREATURE_DAMAGED, defenderPlayer, defender, attacker.getAttack()));
 
         System.out.println("Após combate: " + attacker.getName() + " HP: " + attacker.getHealth() +
                 ", " + defender.getName() + " HP: " + defender.getHealth());
@@ -507,7 +513,7 @@ public class GameLogic {
     }
 
     /**
-     * NOVO: Este método finaliza o turno trocando o jogador e resetando
+     * NOVO: Este metodo finaliza o turno trocando o jogador e resetando
      * os controles de compra de carta.
      */
     public void switchToNextPlayer() {

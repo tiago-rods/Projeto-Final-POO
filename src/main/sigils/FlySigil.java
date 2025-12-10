@@ -9,8 +9,7 @@ public class FlySigil implements Sigil {
     public String description() { return "This card attacks the opponent directly."; }
 
     @Override
-        public void register(/* EventBus bus,  */CreatureCard host) {
-        // code for what sigil will do
-
+    public void register(events.EventBus bus, CreatureCard host) {
+        // Logic is handled by GameLogic flight check for now
     }
 }

@@ -360,11 +360,13 @@ public class EventLogics {
         return eventBus;
     }
 
+    // Aqui registra cada sigil para que quando algum evento acontecer, o sigilo seja ativado
     private void activateOnPlayEffects(CreatureCard creature, Player player) {
         System.out.println("✨ Activating OnPlay effects for " + creature.getName());
         for (Sigil sigil : creature.getSigils()) {
-            System.out.println("🔮 Activating sigil (OnPlay): " + sigil.getClass().getSimpleName());
-            // if (sigil instanceof OnPlaySigil) ...
+            System.out.println("🔮 Registering sigil: " + sigil.getClass().getSimpleName());
+            // Registers the sigil to the event bus so it can start listening
+            sigil.register(eventBus, creature);
         }
     }
 
