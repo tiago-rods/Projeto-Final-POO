@@ -43,6 +43,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.control.Slider;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 
 public class GameScreen {
 
@@ -681,6 +682,13 @@ public class GameScreen {
         bonesValueLabel.setText(String.valueOf(current.getBones()));
     }
 
+    // Configurações da toolTip
+    private void hackTooltipStartTiming(Tooltip tooltip) {
+        tooltip.setShowDelay(Duration.millis(100)); // Aparece em 100ms
+        tooltip.setHideDelay(Duration.millis(50));  // Desaparece rápido
+        tooltip.setShowDuration(Duration.seconds(5)); // Fica visível por 5s
+    }
+
     // hud itens=================
     private void refreshItemsHUD() {
         itemStorageBox.getChildren().clear();
@@ -706,6 +714,26 @@ public class GameScreen {
                 // Adiciona evento de clique
                 slot.setOnMouseClicked(e -> onItemClicked(item));
                 slot.setCursor(Cursor.HAND);
+
+                // Cria o tooltip com o nome do item
+                Tooltip tooltip = new Tooltip(item.name());
+
+                tooltip.setStyle(
+                        "-fx-background-color: #333333;" +
+                                "-fx-text-fill: white;" +
+                                "-fx-font-size: 14px;" +
+                                "-fx-border-color: #776666;" +
+                                "-fx-padding: 5px;"
+                );
+
+                // Opcional: Adiciona a descrição também se desejar
+                // Tooltip tooltip = new Tooltip(item.name() + "\n" + item.description());
+
+                // Melhora o timing de aparição
+                hackTooltipStartTiming(tooltip);
+                // Instala o tooltip no slot (StackPane), vincula
+                Tooltip.install(slot, tooltip);
+                // -----------------------------
 
                 // Hover effect
                 slot.setOnMouseEntered(e -> slot.setStyle(
