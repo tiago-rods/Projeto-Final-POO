@@ -8,20 +8,21 @@ public class Board {
     // Matrix representing the board [row][column]
     private final Card[][] board;
 
-    /*              C0 C1 C2 C3
-    *       Line 0  -  -  -  -
-    *       Line 1  -  -  -  -
-    *       Line 2  -  -  -  -
-    *       Line 3  -  -  -  -
-    * */
+    /*
+     * C0 C1 C2 C3
+     * Line 0 - - - -
+     * Line 1 - - - -
+     * Line 2 - - - -
+     * Line 3 - - - -
+     */
 
     // Enum -> Naming the types of spaces on the game board
     // Enum to identify the board zones
     public enum SpaceType {
-        PLAYER_1_POSITIONING,  // Line 3 (lower)
-        ATTACK_PLAYER1,          // Line 2
-        ATTACK_PLAYER2,          // Line 1
-        PLAYER_2_POSITIONING   // Line 0 (upper)
+        PLAYER_1_POSITIONING, // Line 3 (lower)
+        ATTACK_PLAYER1, // Line 2
+        ATTACK_PLAYER2, // Line 1
+        PLAYER_2_POSITIONING // Line 0 (upper)
     }
 
     public Board() {
@@ -41,11 +42,16 @@ public class Board {
     // Methods for identifying the type of space
     public SpaceType getSpaceType(int line, int col) {
         switch (line) {
-            case 3: return SpaceType.PLAYER_1_POSITIONING;
-            case 2: return SpaceType.ATTACK_PLAYER1;
-            case 1: return SpaceType.ATTACK_PLAYER2;
-            case 0: return SpaceType.PLAYER_2_POSITIONING;
-            default: throw new IllegalArgumentException("Invalid Line: " + line);
+            case 3:
+                return SpaceType.PLAYER_1_POSITIONING;
+            case 2:
+                return SpaceType.ATTACK_PLAYER1;
+            case 1:
+                return SpaceType.ATTACK_PLAYER2;
+            case 0:
+                return SpaceType.PLAYER_2_POSITIONING;
+            default:
+                throw new IllegalArgumentException("Invalid Line: " + line);
         }
     }
 
@@ -63,6 +69,17 @@ public class Board {
         if (EmptySpace(linePos, colPos)) {
             board[linePos][colPos] = card;
             card.setPos(linePos, colPos);
+            return true;
+        }
+        return false;
+    }
+
+    // Place a card at a specific position (line, col)
+    public boolean placeCardAt(Card card, int line, int col) {
+        validatePosition(line, col);
+        if (board[line][col] == null) {
+            board[line][col] = card;
+            card.setPos(line, col);
             return true;
         }
         return false;
@@ -133,8 +150,7 @@ public class Board {
     private void validatePosition(int line, int col) {
         if (line < 0 || line >= height || col < 0 || col >= width) {
             throw new IllegalArgumentException(
-                    String.format("Invalid Position: [%d][%d]", line, col)
-            );
+                    String.format("Invalid Position: [%d][%d]", line, col));
         }
     }
 
