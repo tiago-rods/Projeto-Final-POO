@@ -146,7 +146,6 @@ public class EventLogics {
         System.out.println("⚰️ " + card.getName() + " was sacrificed by " + player.getName());
 
         player.getGraveyard().add(card);
-        // player.addBones(1); // REMOVED: GameLogic already handles this
         eventBus.publish(new Event(EventType.BONES_GAINED, player, null, 1));
 
         if (card instanceof CreatureCard creature) {
@@ -201,7 +200,6 @@ public class EventLogics {
         }
         owner.getGraveyard().add(deadCard);
 
-        // owner.addBones(1); // REMOVED: GameLogic already handles this
         eventBus.publish(new Event(EventType.BONES_GAINED, owner, null, 1));
 
         if (deadCard instanceof CreatureCard creature) {
