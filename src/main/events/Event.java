@@ -21,6 +21,10 @@ public class Event {
         this(type, player, null, null);
     }
 
+    public Event(EventType type, Player player, Object data) {
+        this(type, player, null, data);
+    }
+
     public Event(EventType type, Player player, Card card) {
         this(type, player, card, null);
     }

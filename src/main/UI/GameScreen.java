@@ -132,7 +132,7 @@ public class GameScreen {
     // embaixo)
     private boolean flippedView = false;
 
-    // ====== NOVAS VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
+    // ====== VARIÁVEIS DE ESTADO DE SACRIFÍCIO ======
     private enum SacrificeState {
         NORMAL, // Estado padrão
         AWAITING_SACRIFICE, // Selecionou carta da mão, esperando sacrifícios
@@ -158,7 +158,7 @@ public class GameScreen {
     private java.util.List<CreatureCard> sacrificeCards = new java.util.ArrayList<>();
 
     // ====== MENUS E OVERLAYS ======
-    private StackPane rootPane; // O novo root principal
+    private StackPane rootPane;
     private VBox menuOverlay;
     private VBox settingsBox;
     private VBox instructionsBox;
@@ -175,7 +175,7 @@ public class GameScreen {
 
         // ---------------------------------------------------------------------
         // LAYOUT GERAL:
-        // Root agora é um StackPane para permitir overlays (menus)
+        // Root é um StackPane para permitir overlays (menus)
         // ---------------------------------------------------------------------
         rootPane = new StackPane();
         rootPane.setStyle("-fx-background-color: #1f1b1b;");
@@ -192,10 +192,10 @@ public class GameScreen {
         // Mantém a altura proporcional à altura da janela
         cardHeight.bind(rootPane.heightProperty().multiply(0.138));
 
-// Garante proporção 2:3 (largura:altura)
+        // Garante proporção 2:3 (largura:altura)
         cardWidth.bind(cardHeight.multiply(2.0 / 3.0));
 
-// Espaçamento da mão continua proporcional à largura
+        // Espaçamento da mão continua proporcional à largura
         handSpacing.bind(rootPane.widthProperty().multiply(0.0026));
 
 
@@ -388,7 +388,7 @@ public class GameScreen {
             passTurn();
         });
 
-        // --- MONTAGEM FINAL DO PAINEL ESQUERDO ---
+        // --- MONTAGEM DO PAINEL ESQUERDO ---
         leftPanel.getChildren().addAll(
                 turnLabel,
                 livesHUD,
@@ -500,10 +500,8 @@ public class GameScreen {
     // === MÉTODOS AUXILIARES ===
     // ==========================================================
 
-    /**
-     * Atualiza a posição visual da balança vertical com base no gameScale e
-     * flippedView.
-     */
+
+    // Atualiza a posição visual da balança vertical com base no gameScale e flippedView.
     private void refreshScaleFromGame() {
         if (scaleContainer == null || scaleMarker == null)
             return;
@@ -948,34 +946,6 @@ public class GameScreen {
         return slotId.startsWith("BOTTOM");
     }
 
-    private boolean isPositioningSlot(StackPane slot) {
-        Integer row = (Integer) slot.getProperties().get("row");
-        if (row == null)
-            return false;
-        String id = slot.getId();
-        if (isBottomSlot(id)) {
-            // BOTTOM: r=1 (seta) é posicionamento
-            return row == 1;
-        } else {
-            // TOP: r=0 (seta) é posicionamento
-            return row == 0;
-        }
-    }
-
-    private boolean isAttackSlot(StackPane slot) {
-        Integer row = (Integer) slot.getProperties().get("row");
-        if (row == null)
-            return false;
-        String id = slot.getId();
-        if (isBottomSlot(id)) {
-            // BOTTOM: r=0 (pata) é ataque
-            return row == 0;
-        } else {
-            // TOP: r=1 (pata) é ataque
-            return row == 1;
-        }
-    }
-
     // ============================================
     // Mao do jogador
     // ============================================
@@ -1078,7 +1048,7 @@ public class GameScreen {
 
     // === helpers de seleção ===
     private void selectCard(Card card) {
-        // Se já estamos em um processo de sacrifício, cancelar tudo
+        // Se já está em um processo de sacrifício, cancelar tudo
         if (currentSacrificeState != SacrificeState.NORMAL) {
             cancelSacrificeProcess();
         }
@@ -1123,16 +1093,16 @@ public class GameScreen {
     // === posicionar carta no slot ===
     private void dropCard(StackPane slot) {
         switch (currentSacrificeState) {
-            case NORMAL -> // Comportamento antigo: tentar colocar carta de custo 0
+            case NORMAL -> // Tentar colocar carta de custo 0
                     placeCardNormal(slot);
-            case AWAITING_SACRIFICE -> // selecionar slot para sacrificar
+            case AWAITING_SACRIFICE -> // Selecionar slot para sacrificar
                     selectSlotForSacrifice(slot);
-            case AWAITING_PLACEMENT -> // colocar a carta no slot após sacrifícios
+            case AWAITING_PLACEMENT -> // Colocar a carta no slot após sacrifícios
                     placeCardOnSacrificeSlot(slot);
         }
     }
 
-    // NOVO: Lógica para o estado NORMAL
+    // Lógica para o estado NORMAL
     private void placeCardNormal(StackPane slot) {
         if (selectedCardNode == null)
             return; // Nada selecionado
@@ -1169,7 +1139,7 @@ public class GameScreen {
         }
     }
 
-    // NOVO: Lógica para o estado AWAITING_SACRIFICE
+    // Lógica para o estado AWAITING_SACRIFICE
     private void selectSlotForSacrifice(StackPane slot) {
         int[] coords = getBoardPositionFromSlot(slot);
         if (coords == null)
@@ -1225,7 +1195,7 @@ public class GameScreen {
         }
     }
 
-    // NOVO: Lógica para o estado AWAITING_PLACEMENT
+    //  Lógica para o estado AWAITING_PLACEMENT
     private void placeCardOnSacrificeSlot(StackPane slot) {
         int[] coords = getBoardPositionFromSlot(slot);
         if (coords == null)
@@ -1260,7 +1230,7 @@ public class GameScreen {
         refreshBonesHUD();
     }
 
-    // NOVO: Metodo para cancelar t odo o processo
+    // Metodo para cancelar t odo o processo
     private void cancelSacrificeProcess() {
         System.out.println("Processo de sacrifício cancelado.");
 
@@ -1400,12 +1370,12 @@ public class GameScreen {
         deck.setId(id);
         deck.setAlignment(Pos.CENTER);
 
-        // 🔹 Largura do deck = largura da carta
+        //  Largura do deck = largura da carta
         deck.minWidthProperty().bind(cardWidth);
         deck.prefWidthProperty().bind(cardWidth);
         deck.maxWidthProperty().bind(cardWidth);
 
-        // 🔹 Altura do deck = 1.2x altura da carta (pra parecer um monte)
+        //  Altura do deck = 1.2x altura da carta (pra parecer um monte)
         deck.minHeightProperty().bind(cardHeight.multiply(1.2));
         deck.prefHeightProperty().bind(cardHeight.multiply(1.2));
         deck.maxHeightProperty().bind(cardHeight.multiply(1.2));
@@ -1520,7 +1490,6 @@ public class GameScreen {
 
     private void returnToGame() {
         Scene scene = gameWindow.getScene();
-        // scene.setOnKeyPressed(null); // REMOVIDO: precisamos restaurar o listener do ESC
 
         // Restaurar listener do ESC
         scene.setOnKeyPressed((KeyEvent event) -> {
@@ -1586,9 +1555,7 @@ public class GameScreen {
         }
     }
 
-    /**
-     * Converte uma posição lógica do Board (line, col) para o slot VISUAL correto.
-     */
+    // Converte uma posição lógica do Board (line, col) para o slot VISUAL correto.
     private StackPane getVisualSlotForBoardPosition(int line, int col) {
         boolean isTop;
         int visualRow;
@@ -1626,7 +1593,7 @@ public class GameScreen {
         return findSlot(isTop ? "TOP" : "BOTTOM", visualRow, col);
     }
 
-    /** Converte um slot VISUAL clicado para a posição REAL do Board (line, col). */
+    // Converte um slot VISUAL clicado para a posição REAL do Board (line, col).
     private int[] getBoardPositionFromSlot(StackPane slot) {
         Integer visualRow = (Integer) slot.getProperties().get("row");
         Integer col = (Integer) slot.getProperties().get("col");
@@ -1654,7 +1621,7 @@ public class GameScreen {
         return new int[] { line, col };
     }
 
-    // ===============REFRESHS
+    // =============== REFRESHS
     private void refreshHandsFromGame() {
         Player current = game.getCurrentPlayer();
         playerHandP1.getChildren().clear();
@@ -1676,7 +1643,7 @@ public class GameScreen {
                 if (slot == null)
                     continue;
 
-                // 🔗 Carta no tabuleiro segue o tamanho do slot
+                // Carta no tabuleiro segue o tamanho do slot
                 card.minWidthProperty().unbind();
                 card.prefWidthProperty().unbind();
                 card.maxWidthProperty().unbind();
@@ -1717,9 +1684,6 @@ public class GameScreen {
         settingsBox.setVisible(false);
         instructionsBox.setVisible(false);
         surrenderBox.setVisible(false);
-        // Dim the game - REMOVIDO, o overlay já escurece e o brightnessAdjust é para
-        // config do usuário
-        // brightnessAdjust.setBrightness(-0.5);
     }
 
     private void closeMenu() {
@@ -1728,8 +1692,6 @@ public class GameScreen {
         settingsBox.setVisible(false);
         instructionsBox.setVisible(false);
         surrenderBox.setVisible(false);
-        // Restore brightness - REMOVIDO
-        // brightnessAdjust.setBrightness(0.0);
     }
 
     private void createMenuOverlay() {

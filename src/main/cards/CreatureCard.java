@@ -62,4 +62,13 @@ public final class CreatureCard extends Card {
     public void takeDamage(int dmg) {
         this.health -= dmg;
     }
+
+    public boolean hasSigil(String sigilName) {
+        for (Sigil s : sigils) {
+            if (s.name().equalsIgnoreCase(sigilName)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

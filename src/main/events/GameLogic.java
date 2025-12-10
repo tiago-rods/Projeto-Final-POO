@@ -5,7 +5,8 @@ import cards.Card;
 import cards.Deck;
 import cards.Player;
 import cards.CreatureCard;
-import cards.Scale; // NOVO IMPORT
+import cards.Scale;
+
 
 public class GameLogic {
     private Board board;
@@ -14,10 +15,8 @@ public class GameLogic {
     private Player currentPlayer;
     private Deck deckP1;
     private Deck deckP2;
-    private EventBus eventBus; // EventBus injected
-
-    // ANTES: private int gameScale = 0;
-    // AGORA: balança separada, classe em cards
+    private EventBus eventBus;
+    // balança separada, classe em cards
     private Scale scale = new Scale();
     // 0 = Neutro
     // +5 = Player 1 vence
@@ -40,8 +39,7 @@ public class GameLogic {
         this.currentPlayer = player1; // Player 1 começa
         this.eventBus = eventBus;
 
-        // ANTES: this.gameScale = 0;
-        // AGORA: já começa em 0 dentro de GameScale
+        // já começa em 0 dentro de GameScale
         this.scale.reset();
     }
 
@@ -57,19 +55,9 @@ public class GameLogic {
     public void initializeBothPlayers() {
         initializePlayerHand(player1, deckP1);
         initializePlayerHand(player2, deckP2);
-        // P2 ganha uma carta extra para balancear a vantagem do primeiro jogador
-        deckP2.draw(1, player2.getHand());
+        // Gera os itens aleatórios
         grantRandomItem(player1);
         grantRandomItem(player2);
-    }
-
-    // Compra uma carta do deck (metodo antigo, genérico)
-    public boolean drawCard(Player player, Deck deck) {
-        if (deck.getRemainingCards() > 0) {
-            deck.draw(player.getHand());
-            return true;
-        }
-        return false;
     }
 
     private void grantRandomItem(Player player) {
@@ -85,7 +73,7 @@ public class GameLogic {
         items.Items item = possibleItems.get(new java.util.Random().nextInt(possibleItems.size()));
         if (player.addItem(item)) {
             System.out.println("Player " + player.getName() + " received item: " + item.name());
-            // TODO: Publish ITEM_GAINED event
+            eventBus.publish(new Event(EventType.ITEM_GAINED, player, null, item));
         }
     }
 
@@ -123,8 +111,7 @@ public class GameLogic {
         return available >= bloodCost;
     }
 
-    // Este metodo agora lida APENAS com cartas de custo 0 (sangue) ou custo de
-    // ossos.
+    // Este metodo agora lida APENAS com cartas de custo 0 (sangue) ou custo de ossos.
     // Se a carta tiver custo de sangue, ele retorna REQUIRES_SACRIFICE_SELECTION.
     public PlaceCardResult tryPlaceCardFromCurrentPlayerHand(int handIndex, int targetLine, int targetCol) {
 
@@ -222,7 +209,7 @@ public class GameLogic {
         return count;
     }
 
-    // MODIFICADO: Paga o custo da carta
+    // Paga o custo da carta
     private void payCost(Player player, CreatureCard card, java.util.List<CreatureCard> sacrifices) {
         // Paga custo de ossos
         if (card.getBonesCost() > 0) {
@@ -380,7 +367,7 @@ public class GameLogic {
             }
         }
 
-        // Opcional: Imprimir o board após os movimentos para debug
+        // Imprime o board após os movimentos para debug
         System.out.println("Tabuleiro após movimentos:");
         board.printBoard();
 
@@ -404,21 +391,14 @@ public class GameLogic {
 
             if (attackerCard instanceof CreatureCard) {
                 CreatureCard attackingCreature = (CreatureCard) attackerCard;
-
-                // ANTES: performAttack(attackingCreature, defender, col);
-                // AGORA: passamos também o Player atacante para atualizar a balança
                 performAttack(attackingCreature, attacker, defender, col);
             }
         }
-
         // Remove criaturas mortas após todos os ataques
         cleanupDeadCreatures();
     }
 
     // Realiza o ataque de uma criatura específica
-    // ANTES: private void performAttack(CreatureCard attacker, Player defender, int
-    // column)
-    // AGORA: também recebe o Player atacante
     private void performAttack(CreatureCard attacker, Player attackerPlayer, Player defender, int column) {
         int attackerLine = attacker.getPosLine();
         int attackerCol = attacker.getPosCol();
@@ -426,10 +406,9 @@ public class GameLogic {
         eventBus.publish(new Event(EventType.ATTACK_DECLARED, attackerPlayer, attacker));
 
         // Verifica se tem sigilo de voo (FlySigil)
-        boolean hasFlying = attacker.getSigils().stream()
-                .anyMatch(s -> s.getClass().getSimpleName().equals("FlySigil"));
+        boolean hasFlying = attacker.hasSigil("Fly");
 
-        // Vamos calcular as linhas opostas manualmente
+        // Calcula as linhas opostas manualmente
         int oppositeAttackLine;
         int oppositeDefenseLine;
 
@@ -444,6 +423,8 @@ public class GameLogic {
         // 1. Busca carta na linha de ATAQUE oposta
         Card oppositeAttackCard = board.getCard(oppositeAttackLine, attackerCol);
 
+        // 2. Verifica se a carta tem sigilo de voo
+        // Se tiver carta na linha de ataque oposta e não tiver sigilo de voo, resolve combate
         if (oppositeAttackCard != null && !hasFlying) {
             // Ataque bloqueado - criaturas lutam entre si
             System.out.println("⚔️ Ataque bloqueado na linha de frente (Linha " + oppositeAttackLine + ")");
@@ -451,13 +432,14 @@ public class GameLogic {
                 CreatureCard blocker = (CreatureCard) oppositeAttackCard;
                 resolveCombat(attacker, blocker);
             }
+            // basicamente esse é o ataque quando se tem o sigilo de voo
         } else {
             // Ataque direto ao oponente (ignora retaguarda)
             int damage = attacker.getAttack();
             System.out.println(defender.getName() + " levou " + damage + " de dano direto na balança!");
             eventBus.publish(new Event(EventType.DAMAGE_DEALT, attackerPlayer, null, damage));
 
-            // Agora o dano mexe APENAS na balança
+            // Dano mexe na balança
             updateGameScale(attackerPlayer, damage);
         }
     }
@@ -472,12 +454,13 @@ public class GameLogic {
 
         // Atualiza ícones de vida
         defender.changeLifeIcon(Math.max(0, defender.getHealth()));
-        // Assumindo player2 como defensor aqui, mas idealmente passaria o dono
-        eventBus.publish(new Event(EventType.CREATURE_DAMAGED, player2, defender, attacker.getAttack()));
-
+        Player defenderPlayer = (currentPlayer == player1) ? player2 : player1;
+        eventBus.publish(new Event(EventType.CREATURE_DAMAGED, defenderPlayer, defender, attacker.getAttack()));
+        
         System.out.println("Após combate: " + attacker.getName() + " HP: " + attacker.getHealth() +
                 ", " + defender.getName() + " HP: " + defender.getHealth());
     }
+
 
     // Remove criaturas mortas do tabuleiro
     private void cleanupDeadCreatures() {
@@ -523,24 +506,17 @@ public class GameLogic {
             return player2;
         }
 
-        // Empate esquisito: os dois morreram ao mesmo tempo
+        // Empate?: os dois morreram ao mesmo tempo
         return null;
     }
 
-    /**
-     * MODIFICADO: Este metodo agora APENAS executa as ações de fim de turno
-     * (movimento e ataque) do jogador atual.
-     * Ele NÃO troca mais o jogador.
-     */
+    // Metodo agora APENAS executa as ações de fim de turno (movimento e ataque) do jogador atual.
     public void executeEndOfTurn() {
         System.out.println("\n--- Fase de Ações de " + currentPlayer.getName() + " ---");
         performEndOfTurnActions(currentPlayer);
     }
 
-    /**
-     * NOVO: Este método finaliza o turno trocando o jogador e resetando
-     * os controles de compra de carta.
-     */
+    // Este método finaliza o turno trocando o jogador e resetando os controles de compra de carta.
     public void switchToNextPlayer() {
         eventBus.publish(new Event(EventType.TURN_ENDED, currentPlayer));
 
@@ -564,12 +540,6 @@ public class GameLogic {
     public void triggerItemEffect(items.Items item, Player player, Object target) {
         // Publish event so EventLogics can handle it (or UI can react)
         // We pass the item as "data" or we could create a custom event field if needed.
-        // For now, let's pass the item as the data, and if we need target, we might
-        // need a custom object or just pass target as data?
-        // Event constructor: Event(EventType type, Player player, Card card, Object
-        // data)
-        // We can pass item as data. But what about target?
-        // If target is a Card, we can pass it as 'card'.
 
         Card targetCard = (target instanceof Card) ? (Card) target : null;
         // If target is not a card (e.g. null for Pliers), targetCard is null.
@@ -757,7 +727,7 @@ public class GameLogic {
         }
     }
 
-    // NOVO: Compra esquilo via item (não gasta a compra do turno)
+    // Compra esquilo via item (não gasta a compra do turno)
     public boolean drawSquirrelFromItem(Player player) {
         Deck currentDeck = (player == player1) ? deckP1 : deckP2;
         int before = player.getHand().size();
@@ -799,10 +769,7 @@ public class GameLogic {
         return hasDrawnThisTurn;
     }
 
-    // ANTES: retornava o int direto
-    // public int getGameScale(){ return gameScale; }
-
-    // AGORA: expõe o valor da balança (UI continua enxergando um int)
+    // Expõe o valor da balança (UI continua enxergando um int)
     public int getGameScale() {
         return scale.getValue();
     }
