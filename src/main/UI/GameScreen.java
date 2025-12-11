@@ -1103,7 +1103,8 @@ public class GameScreen {
         if (card instanceof CreatureCard creature && creature.getBloodCost() > 0) {
             // pergunta pra GameLogic se tem sacrifício suficiente
             if (!game.canPayBloodCostWithCurrentBoard(creature)) {
-                System.out.println("Não há criaturas suficientes no tabuleiro para sacrificar!");
+                AudioController.playSFX("error_message.wav"); // (Opcional) Som de erro
+                showMessage("Insufficient sacrifices for this card.");
                 return;
             }
 
@@ -1120,8 +1121,23 @@ public class GameScreen {
 
             // 3. Destacar visualmente as cartas que PODEM ser sacrificadas
             highlightSacrificeableSlots(true);
-        } else {
-            // custo 0 ou não-criatura: seleção normal
+
+            // Mensagem de instrução
+            showMessage("Select " + creature.getBloodCost() + " card(s) to sacrifice.");
+        } else if (card instanceof CreatureCard creature && creature.getBonesCost() > 0) {
+            // Verifica se tem ossos suficientes antes mesmo de selecionar
+            if (game.getCurrentPlayer().getBones() < creature.getBonesCost()) {
+                AudioController.playSFX("error_message.wav");
+                showMessage("Not enough bones (" + game.getCurrentPlayer().getBones() + "/" + creature.getBonesCost() + ").");
+                return; // Impede a seleção
+            }
+
+            // Se tem ossos, seleciona normal
+            selectedCardNode = card;
+            card.highlight(true);
+        }
+        else {
+            // Custo 0 (Esquilos, etc) ou não-criatura
             selectedCardNode = card;
             card.highlight(true);
         }
@@ -1164,22 +1180,52 @@ public class GameScreen {
             return;
         }
 
-        // Usa o metodo da GameLogic
+        // Usa o metodo da GameLogic (tenta colocar a carta)
         GameLogic.PlaceCardResult result = game.tryPlaceCardFromCurrentPlayerHand(
                 handIndex, coords[0], coords[1]);
 
-        if (result == GameLogic.PlaceCardResult.SUCCESS) {
-            AudioController.playSFX("place_card.wav");
-            clearSelection();
-            refreshHandsFromGame();
-            refreshBoardFromGame();
-            refreshBonesHUD();
-        } else if (result == GameLogic.PlaceCardResult.REQUIRES_SACRIFICE_SELECTION) {
-            // UI tentou colocar direto, mas requer sacrifício
-            System.out.println("Iniciando modo de sacrifício via dropCard.");
-            selectCard(selectedCardNode); // Inicia o processo de sacrifício
-        } else {
-            System.out.println("Não foi possível colocar a carta: " + result);
+        // --- TRATAMENTO DE MENSAGENS DE ERRO ---
+        switch (result) {
+            case SUCCESS:
+                AudioController.playSFX("place_card.wav");
+                clearSelection();
+                refreshHandsFromGame();
+                refreshBoardFromGame();
+                refreshBonesHUD();
+                break;
+
+            case NOT_ENOUGH_BONES:
+                showMessage("Not enough bones to play this card.");
+                AudioController.playSFX("error.wav");
+                break;
+
+            case SLOT_OCCUPIED:
+                showMessage("This space is already occupied.");
+                AudioController.playSFX("error.wav");
+                break;
+
+            case INVALID_SPACE:
+                showMessage("You can't play cards here.");
+                AudioController.playSFX("error.wav");
+                break;
+
+            case NOT_A_CREATURE:
+                showMessage("This card cannot be played on the board.");
+                break;
+
+            case REQUIRES_SACRIFICE_SELECTION:
+                // Isso geralmente é tratado no selectCard, mas se cair aqui:
+                showMessage("This card requires sacrifices.");
+                selectCard(selectedCardNode);
+                break;
+
+            case NOT_ENOUGH_SACRIFICES:
+                showMessage("You don't have enough creatures to sacrifice.");
+                break;
+
+            default:
+                // Ignora silenciosamente outros erros
+                break;
         }
     }
 
@@ -1259,6 +1305,15 @@ public class GameScreen {
                 sacrificeCards);
 
         if (result != GameLogic.PlaceCardResult.SUCCESS) {
+            // Adicione feedback aqui
+            if (result == GameLogic.PlaceCardResult.SLOT_OCCUPIED) {
+                showMessage("Space occupied. Choose an empty space or one of the sacrifices.");
+            } else if (result == GameLogic.PlaceCardResult.INVALID_SPACE) {
+                showMessage("Invalid place.");
+            } else {
+                showMessage("The card could not be invoked.");
+            }
+
             System.out.println("Erro ao tentar colocar com sacrifício: " + result);
             // jogador ainda pode clicar em outro slot
             return;
