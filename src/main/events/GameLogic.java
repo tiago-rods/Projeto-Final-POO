@@ -516,14 +516,23 @@ public class GameLogic {
         performEndOfTurnActions(currentPlayer);
     }
 
-    // Este método finaliza o turno trocando o jogador e resetando os controles de compra de carta.
+    // Este metodo finaliza o turno trocando o jogador e resetando os controles de compra de carta.
     public void switchToNextPlayer() {
+        // --- RESET DE BALANÇA ---
+        // Verifica se alguém perdeu vida no turno anterior (balança >= 5 ou <= -5)
+        // Se sim, reseta para 0 agora que o turno vai mudar.
+        if (Math.abs(scale.getValue()) >= 5) {
+            scale.reset();
+            System.out.println("⚖️ Balança resetada para o novo turno.");
+        }
+
         eventBus.publish(new Event(EventType.TURN_ENDED, currentPlayer));
 
         // muda player
         currentPlayer = (currentPlayer == player1) ? player2 : player1;
 
         // Check if turn should be skipped
+        // Lógica do Hourglass
         if (skipNextTurn) {
             System.out.println("⏳ " + currentPlayer.getName() + "'s turn is skipped due to Hourglass!");
             skipNextTurn = false; // Reset flag
@@ -640,7 +649,6 @@ public class GameLogic {
                 return; // Encerra lógica por aqui
             }
 
-            scale.reset(); // volta para 0
             // Reset item received flag for next life
             player2ReceivedItem = false;
         } else if (scale.getValue() >= 4 && !player2ReceivedItem) {
@@ -663,7 +671,6 @@ public class GameLogic {
                 return;
             }
 
-            scale.reset(); // volta para 0
             // Reset item received flag for next life
             player1ReceivedItem = false;
         } else if (scale.getValue() <= -4 && !player1ReceivedItem) {
